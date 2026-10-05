@@ -130,6 +130,21 @@ const rowSchemas: Record<string, object> = {
     properties: { id: str, questionText: str },
   },
   tags: { type: 'object', required: ['name'], properties: { name: str } },
+  formulas: {
+    type: 'object',
+    required: ['id', 'name', 'equation', 'origin'],
+    properties: {
+      id: str,
+      name: str,
+      equation: { type: 'object' },
+      origin: { enum: ['pack', 'user'] },
+    },
+  },
+  formulaProgress: {
+    type: 'object',
+    required: ['formulaId'],
+    properties: { formulaId: str, notes: str },
+  },
   studyAssets: {
     type: 'object',
     required: ['id', 'file'],

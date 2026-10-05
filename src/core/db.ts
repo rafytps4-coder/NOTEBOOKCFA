@@ -11,6 +11,8 @@ import type {
 } from './models';
 import type {
   Flashcard,
+  FormulaProgress,
+  FormulaRow,
   Mistake,
   Question,
   QuizResult,
@@ -39,6 +41,8 @@ export class NotebookDB extends Dexie {
   mistakes!: Table<Mistake, string>;
   tags!: Table<TagRow, string>;
   studyAssets!: Table<StudyAsset, string>;
+  formulas!: Table<FormulaRow, string>;
+  formulaProgress!: Table<FormulaProgress, string>;
 
   constructor(name = 'notebook') {
     super(name);
@@ -83,6 +87,11 @@ export class NotebookDB extends Dexie {
       mistakes: 'id, questionId, formulaId, reviewed, createdAt',
       tags: 'name',
       studyAssets: 'id',
+    });
+    // v6: purely additive: the formula library and per-user formula notes.
+    this.version(6).stores({
+      formulas: 'id, packId, origin, category, topicId',
+      formulaProgress: 'formulaId',
     });
   }
 }

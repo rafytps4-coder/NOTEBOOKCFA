@@ -226,3 +226,49 @@ async function stripStudy(blob: Blob): Promise<Blob> {
   await w.flush();
   return new Blob(w.parts);
 }
+
+describe('formulas in backups', () => {
+  it('formulas, notes and links survive replace; merge never overwrites what you have', async () => {
+    const { installFormulaPack, createUserFormula, saveFormulaNotes } = await import('@/core');
+    const starter = (await import('../../../content-packs/cfa-l1-2027/formulas.starter.json'))
+      .default;
+    const { validateFormulaPack } = await import('@/engines/formula');
+    const r = validateFormulaPack(structuredClone(starter));
+    if (!r.ok) throw new Error('pack');
+    await installFormulaPack(r.pack);
+    const mine = await createUserFormula({
+      name: 'Mine',
+      category: 'c',
+      equation: { latex: 'a', plain: 'a' },
+      variables: [{ symbol: 'a', name: 'a' }],
+      purpose: 'p',
+      whenToUse: 'w',
+      workedExample: { problem: 'p', steps: ['s'], answer: 'a' },
+      commonMistakes: ['m'],
+      difficulty: 'foundational',
+    });
+    await saveFormulaNotes(mine.id, 'note v1');
+    const set = await createSet('S');
+    await addCard({
+      setId: set.id,
+      front: { text: 'f', imageId: null },
+      back: emptySide(),
+      formulaId: 'quant.npv',
+    });
+    const blob = (await exportLibrary())!;
+
+    // merge into a library where the note was edited afterwards: the newer note wins
+    await saveFormulaNotes(mine.id, 'note v2 (newer)');
+    await importArchive(blob, 'merge');
+    expect((await db.formulaProgress.get(mine.id))!.notes).toBe('note v2 (newer)');
+    expect(await db.formulas.count()).toBe(9);
+    expect(await db.flashcards.count()).toBe(2); // study rows are copied on merge
+
+    await wipe();
+    await importArchive(blob, 'replace');
+    expect(await db.formulas.count()).toBe(9);
+    expect((await db.formulaProgress.get(mine.id))!.notes).toBe('note v1');
+    expect((await db.flashcards.toArray())[0]!.formulaId).toBe('quant.npv');
+    expect((await db.settings.get('formulas.installedPacks'))!.value).toHaveLength(1);
+  });
+});

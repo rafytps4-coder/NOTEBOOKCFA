@@ -3,6 +3,7 @@ import './study.css';
 
 const TABS = [
   { to: '/study', label: 'Flashcards', end: true },
+  { to: '/study/formulas', label: 'Formulas' },
   { to: '/study/questions', label: 'Questions' },
   { to: '/study/mistakes', label: 'Mistakes' },
 ];

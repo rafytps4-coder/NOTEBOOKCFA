@@ -1,6 +1,6 @@
 import MiniSearch from 'minisearch';
 
-export type HitKind = 'folder' | 'document' | 'page';
+export type HitKind = 'folder' | 'document' | 'page' | 'formula';
 
 export interface IndexItem {
   id: string;
@@ -8,6 +8,8 @@ export interface IndexItem {
   documentId: string | null;
   folderId: string | null;
   pageId: string | null;
+  /** Formula items only. */
+  formulaId?: string | null;
   /** 1-based position of the page in its document (page items only). */
   pageNumber: number | null;
   title: string;
@@ -27,6 +29,7 @@ export interface SearchHit {
   documentId: string | null;
   folderId: string | null;
   pageId: string | null;
+  formulaId: string | null;
   pageNumber: number | null;
   title: string;
   snippet: Segment[] | null;
@@ -115,6 +118,7 @@ export class SearchIndex {
         'documentId',
         'folderId',
         'pageId',
+        'formulaId',
         'pageNumber',
         'title',
         'text',
@@ -180,9 +184,10 @@ export class SearchIndex {
         documentId: it.documentId,
         folderId: it.folderId,
         pageId: it.pageId,
+        formulaId: it.formulaId ?? null,
         pageNumber: it.pageNumber,
         title: it.title,
-        snippet: it.kind === 'page' ? makeSnippet(it.text, r.terms) : null,
+        snippet: it.kind === 'page' || it.kind === 'formula' ? makeSnippet(it.text, r.terms) : null,
         score: r.score,
       };
     });

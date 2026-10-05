@@ -174,3 +174,26 @@ textarea.study-text {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+.math {
+  padding: 12px;
+  margin: 12px 0;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  overflow-x: auto;
+  font-size: 1.15rem;
+}
+.var-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+.var-table th,
+.var-table td {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+.mastery {
+  white-space: nowrap;
+}

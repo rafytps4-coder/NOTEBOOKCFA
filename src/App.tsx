@@ -13,6 +13,8 @@ import { ReviewSession } from './features/study/ReviewSession';
 import { QuestionsPage } from './features/study/QuestionsPage';
 import { QuizSession } from './features/study/QuizSession';
 import { MistakesPage } from './features/study/MistakesPage';
+import { FormulasPage } from './features/formulas/FormulasPage';
+import { FormulaDetail } from './features/formulas/FormulaDetail';
 import { MistakeReview } from './features/study/MistakeReview';
 import { UpdatePrompt } from './features/pwa/UpdatePrompt';
 import { FirstRunGuide } from './features/help/FirstRunGuide';
@@ -62,6 +64,8 @@ export function App() {
               <Route index element={<SetsPage />} />
               <Route path="set/:id" element={<SetPage />} />
               <Route path="set/:id/review" element={<ReviewSession />} />
+              <Route path="formulas" element={<FormulasPage />} />
+              <Route path="formulas/:id" element={<FormulaDetail />} />
               <Route path="questions" element={<QuestionsPage />} />
               <Route path="quiz" element={<QuizSession />} />
               <Route path="mistakes" element={<MistakesPage />} />

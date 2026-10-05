@@ -94,6 +94,15 @@ Built in prompt 01: `src/core/` holds `models`, `db` (Dexie v1), repositories (`
 - **From a notebook**: the toolbar's _Flashcard_ button takes the selection (`CanvasController.selectionInfo()`): text from text boxes pre-fills the front, and a PNG snapshot of the selected strokes/objects (no page background) can be attached. Handwriting is never converted to text.
 - **Backup**: library backups include all study tables (`backup/extraTables.ts`: per-table id spaces and link fields). Merge gives colliding ids new ids and rewrites every link (card → set/image/notebook page, log → card/set/session, result/mistake → question). Replace only clears tables the backup actually contains, so restoring a backup from before study existed never wipes flashcards. Single-notebook files carry no study data.
 
+## 6e. Formula engine (built in prompt 09)
+
+- **Generic** like the study system: `engines/formula` (pack validation, mastery, evidence, recommendations; pure and tested), `core/formulas.ts` (installing packs, user formulas), `features/formulas` (UI under `/study/formulas`). KaTeX is loaded lazily (`katexLoader.ts`), so it costs nothing until a formula is shown; its CSS/fonts are precached for offline use.
+- **Packs**: `validateFormulaPack` checks a pack with Ajv (2020-12) against `content-packs/schemas/formulas.schema.json`, then rejects wrong kinds, newer/older schema majors (supported: 1), duplicate ids, and (when the topics pack is known) unknown topics. It is pure: an invalid pack fails with readable messages and **never touches the database**. `installFormulaPack` replaces only that pack's own rows in one transaction and refuses to take over ids belonging to another pack or the user.
+- **User data is separate from pack data**: pack formulas live in `formulas` (`origin: 'pack'`, replaced on update); notes live in `formulaProgress` keyed by formula id; flashcards/questions/mistakes link by `formulaId`. Updating or removing a pack formula therefore never loses notes or history. User formulas have ids starting `user:` and can't collide with pack ids.
+- **Mastery** is derived from linked review logs, quiz results and mistakes (rules in `docs/MASTERY.md`); it cannot be edited. `features/formulas/masteryData.ts` gathers the history in bulk.
+- **Backup & search**: formulas and notes are in library backups (natural keys: a merge only adds missing rows and never overwrites yours; Replace restores them). The search worker indexes formulas (name, category, plain equation, purpose, when-to-use, variables, tags and your notes) and results open the formula.
+- **Bundled pack list** (`packSources.ts`) currently lists the starter pack; prompt 10 moves pack discovery to Helpers.
+
 ## 7. Helper plugin interface _(planned, prompt 10)_
 
 - A `Helper` registers via `helpers/registry` (id, name, routes, nav entry, optional hooks). Core knows only the registry.

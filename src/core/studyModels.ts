@@ -135,3 +135,39 @@ export interface StudyAsset {
   blob: Blob;
   createdAt: number;
 }
+
+// ---- formulas (prompt 09) ----------------------------------------------------------------
+
+import type { PackFormula } from '@/engines/formula/types';
+
+/**
+ * A formula in the library: either shipped in a content pack (`origin: 'pack'`, replaced when the
+ * pack is updated) or written by the user (`origin: 'user'`, id starts with `user:`). Everything
+ * the user adds to a formula (notes) lives in `FormulaProgress`, never here, so updating a pack
+ * can't overwrite it.
+ */
+export type FormulaRow = Omit<PackFormula, 'source'> & {
+  source: 'original' | 'user';
+  origin: 'pack' | 'user';
+  /** Pack the formula came from; null for user formulas. */
+  packId: string | null;
+  updatedAt: number;
+};
+
+/** Per-user state for one formula, keyed by the formula's id. */
+export interface FormulaProgress {
+  formulaId: string;
+  notes: string;
+  updatedAt: number;
+}
+
+/** What is installed from content packs (kept in settings under this key). */
+export interface InstalledPack {
+  packId: string;
+  title: string;
+  contentVersion: string;
+  curriculumVersion: string;
+  disclaimer: string;
+  count: number;
+  installedAt: number;
+}

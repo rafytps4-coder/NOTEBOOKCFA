@@ -1,5 +1,6 @@
 import type { NotebookDB } from '@/core/db';
 import type { Folder, NotebookDocument, Page, SearchTextRow } from '@/core/models';
+import type { FormulaProgress, FormulaRow } from '@/core/studyModels';
 import { SearchIndex, type IndexItem, type SearchHit } from './searchIndex';
 
 export interface EngineProgress {
@@ -31,6 +32,29 @@ const folderItem = (f: Folder): IndexItem => ({
   deleted: f.deletedAt !== null,
 });
 
+const formulaItem = (f: FormulaRow, notes: FormulaProgress | undefined): IndexItem => ({
+  id: `formula:${f.id}`,
+  kind: 'formula',
+  documentId: null,
+  folderId: null,
+  pageId: null,
+  formulaId: f.id,
+  pageNumber: null,
+  title: f.name,
+  text: [
+    f.category,
+    f.equation.plain,
+    f.purpose,
+    f.whenToUse,
+    f.variables.map((v) => `${v.symbol} ${v.name}`).join(', '),
+    (f.tags ?? []).join(' '),
+    notes?.notes ?? '',
+  ]
+    .filter(Boolean)
+    .join('. '),
+  deleted: false,
+});
+
 /**
  * Reads source data from IndexedDB and keeps a SearchIndex in step with it. Runs inside a Web
  * Worker in the app (so indexing never blocks the UI) and directly in tests. It only ever reads
@@ -41,6 +65,7 @@ export class SearchEngine {
   /** documentId -> deleted? (page items inherit their document's state) */
   private docs = new Map<string, NotebookDocument>();
   private folderDeleted = new Map<string, boolean>();
+  private formulaIds = new Set<string>();
 
   constructor(private db: NotebookDB) {}
 
@@ -109,6 +134,8 @@ export class SearchEngine {
     this.index.clear();
     this.docs.clear();
     this.folderDeleted.clear();
+    this.formulaIds.clear();
+    await this.syncFormulas();
     const folders = await this.db.folders.toArray();
     const docs = await this.db.documents.toArray();
     for (const f of folders) {
@@ -126,6 +153,21 @@ export class SearchEngine {
       if (done % 20 === 0) await new Promise((r) => setTimeout(r));
     }
     onProgress?.({ done: total, total });
+  }
+
+  /** (Re)index every formula. Few enough that rebuilding them all on any change is cheap. */
+  async syncFormulas(): Promise<void> {
+    for (const id of this.formulaIds) this.index.remove(`formula:${id}`);
+    this.formulaIds.clear();
+    const [formulas, notes] = await Promise.all([
+      this.db.formulas.toArray(),
+      this.db.formulaProgress.toArray(),
+    ]);
+    const byId = new Map(notes.map((n) => [n.formulaId, n]));
+    for (const f of formulas) {
+      this.index.upsert(formulaItem(f, byId.get(f.id)));
+      this.formulaIds.add(f.id);
+    }
   }
 
   search(query: string, limit?: number): SearchHit[] {

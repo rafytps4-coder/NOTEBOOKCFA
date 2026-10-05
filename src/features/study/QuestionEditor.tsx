@@ -3,8 +3,13 @@ import { deleteQuestion, parseTags, saveQuestion, type Difficulty, type Question
 import { Dialog } from '@/ui/Dialog';
 import { ConfirmDialog } from '@/ui/Dialogs';
 
-export function QuestionEditor(props: { question?: Question; onClose: () => void }) {
-  const q = props.question;
+export function QuestionEditor(props: {
+  question?: Question;
+  /** Pre-fills a new question (e.g. from a formula). */
+  seed?: Partial<Omit<Question, 'id'>>;
+  onClose: () => void;
+}) {
+  const q = props.question ?? (props.seed as Question | undefined);
   const [kind, setKind] = useState<Question['kind']>(q?.kind ?? 'multiple-choice');
   const [prompt, setPrompt] = useState(q?.prompt ?? '');
   const [choices, setChoices] = useState<string[]>(q?.choices.length ? q.choices : ['', '', '']);
@@ -26,7 +31,7 @@ export function QuestionEditor(props: { question?: Question; onClose: () => void
     // Keep only filled choices, and move the correct index with them.
     const kept = filled.map((c, i) => ({ c, i })).filter((x) => x.c);
     await saveQuestion({
-      id: q?.id,
+      id: props.question?.id,
       kind,
       prompt: prompt.trim(),
       choices: kind === 'multiple-choice' ? kept.map((x) => x.c) : [],
@@ -41,7 +46,7 @@ export function QuestionEditor(props: { question?: Question; onClose: () => void
   }
 
   return (
-    <Dialog title={q ? 'Edit question' : 'New question'} onClose={props.onClose}>
+    <Dialog title={props.question ? 'Edit question' : 'New question'} onClose={props.onClose}>
       <form
         className="form-grid"
         onSubmit={(e) => {
@@ -118,7 +123,7 @@ export function QuestionEditor(props: { question?: Question; onClose: () => void
           </select>
         </label>
         <div className="btn-row end">
-          {q && (
+          {props.question && (
             <button type="button" className="btn danger" onClick={() => setConfirming(true)}>
               Delete
             </button>
@@ -131,7 +136,7 @@ export function QuestionEditor(props: { question?: Question; onClose: () => void
           </button>
         </div>
       </form>
-      {confirming && q && (
+      {confirming && props.question && (
         <ConfirmDialog
           title="Delete this question?"
           message="Its quiz results are removed. Mistakes you logged keep their text."
@@ -139,7 +144,7 @@ export function QuestionEditor(props: { question?: Question; onClose: () => void
           danger
           onClose={() => setConfirming(false)}
           onConfirm={async () => {
-            await deleteQuestion(q.id);
+            await deleteQuestion(props.question!.id);
             props.onClose();
           }}
         />

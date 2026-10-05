@@ -16,6 +16,8 @@ interface Spec {
   ns: string | null;
   /** field → id space it refers to. */
   refs?: Record<string, string>;
+  /** Natural keys: a merge only adds rows that don't exist yet (never overwrites yours). */
+  keepExisting?: boolean;
 }
 
 export const EXTRA_SPECS: Spec[] = [
@@ -37,6 +39,9 @@ export const EXTRA_SPECS: Spec[] = [
   },
   { table: 'mistakes', key: 'id', ns: 'mistake', refs: { questionId: 'question' } },
   { table: 'tags', key: 'name', ns: null },
+  // Formulas keep their ids (cards and questions refer to them by id); notes belong to a formula.
+  { table: 'formulas', key: 'id', ns: null, keepExisting: true },
+  { table: 'formulaProgress', key: 'formulaId', ns: null, keepExisting: true },
 ];
 
 export const EXTRA_TABLE_NAMES = [...EXTRA_SPECS.map((s) => s.table), 'studyAssets'];
@@ -173,7 +178,13 @@ export async function applyExtra(p: PreparedExtra, mode: 'merge' | 'replace'): P
   if (mode === 'replace') {
     for (const t of [...p.present]) await db.table(t).clear();
   }
-  for (const s of EXTRA_SPECS)
-    if (p.rows[s.table]!.length) await db.table(s.table).bulkPut(p.rows[s.table]!);
+  for (const s of EXTRA_SPECS) {
+    let rows = p.rows[s.table]!;
+    if (mode === 'merge' && s.keepExisting && rows.length) {
+      const have = new Set(await db.table(s.table).toCollection().primaryKeys());
+      rows = rows.filter((r) => !have.has(r[s.key] as string));
+    }
+    if (rows.length) await db.table(s.table).bulkPut(rows);
+  }
   if (p.assets.length) await db.studyAssets.bulkPut(p.assets);
 }

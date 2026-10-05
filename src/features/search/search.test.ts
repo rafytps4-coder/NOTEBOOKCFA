@@ -285,3 +285,42 @@ describe('engine over IndexedDB', () => {
     expect(query).toBeLessThan(200);
   });
 });
+
+describe('formulas in search', () => {
+  it('formulas and their notes are searchable, follow changes, and open the formula', async () => {
+    const {
+      createUserFormula,
+      saveFormulaNotes,
+      deleteUserFormula,
+      db: d,
+    } = await import('@/core');
+    await Promise.all(d.tables.map((t) => t.clear()));
+    const f = await createUserFormula({
+      name: 'Compound growth',
+      category: 'Money',
+      equation: { latex: 'a', plain: 'FV = PV (1+r)^n' },
+      variables: [{ symbol: 'r', name: 'rate' }],
+      purpose: 'Grow an amount',
+      whenToUse: 'One deposit',
+      workedExample: { problem: 'p', steps: ['s'], answer: 'a' },
+      commonMistakes: ['m'],
+      difficulty: 'foundational',
+      tags: ['tvm'],
+    });
+    const engine = new SearchEngine(d);
+    await engine.rebuild();
+    const hit = engine.search('compound')[0]!;
+    expect(hit).toMatchObject({ kind: 'formula', formulaId: f.id, documentId: null });
+    expect(engine.search('deposit')[0]!.formulaId).toBe(f.id); // whenToUse text
+    expect(engine.search('tvm')).toHaveLength(1);
+    expect(engine.search('zebra')).toHaveLength(0);
+
+    await saveFormulaNotes(f.id, 'remember zebra stripes');
+    await engine.syncFormulas();
+    expect(engine.search('zebra')[0]!.formulaId).toBe(f.id);
+
+    await deleteUserFormula(f.id);
+    await engine.syncFormulas();
+    expect(engine.search('compound')).toHaveLength(0);
+  });
+});

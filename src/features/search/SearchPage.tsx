@@ -13,11 +13,16 @@ interface Group {
 }
 
 /** Group page hits under their document, keeping the best-scoring group first. */
-export function groupHits(hits: SearchHit[]): { folders: SearchHit[]; groups: Group[] } {
+export function groupHits(hits: SearchHit[]): {
+  folders: SearchHit[];
+  formulas: SearchHit[];
+  groups: Group[];
+} {
   const folders = hits.filter((h) => h.kind === 'folder');
+  const formulas = hits.filter((h) => h.kind === 'formula');
   const map = new Map<string, Group>();
   for (const h of hits) {
-    if (h.kind === 'folder' || !h.documentId) continue;
+    if (h.kind === 'folder' || h.kind === 'formula' || !h.documentId) continue;
     let g = map.get(h.documentId);
     if (!g)
       map.set(
@@ -29,7 +34,7 @@ export function groupHits(hits: SearchHit[]): { folders: SearchHit[]; groups: Gr
     else if (!g.pages.some((p) => p.pageId === h.pageId)) g.pages.push(h);
   }
   for (const g of map.values()) g.pages.sort((a, b) => (a.pageNumber ?? 0) - (b.pageNumber ?? 0));
-  return { folders, groups: [...map.values()].sort((a, b) => b.score - a.score) };
+  return { formulas, folders, groups: [...map.values()].sort((a, b) => b.score - a.score) };
 }
 
 function Snippet({ segments }: { segments: Segment[] }) {
@@ -70,7 +75,7 @@ export function SearchPage() {
     return () => window.clearTimeout(t);
   }, [q, status.ready, status.version]);
 
-  const { folders, groups } = useMemo(() => groupHits(hits), [hits]);
+  const { folders, formulas, groups } = useMemo(() => groupHits(hits), [hits]);
   const indexing = Object.values(pdfActive);
   const pdfDone = indexing.reduce((a, b) => a + b.done, 0);
   const pdfTotal = indexing.reduce((a, b) => a + b.total, 0);
@@ -81,7 +86,7 @@ export function SearchPage() {
       <input
         type="search"
         className="search-box"
-        placeholder="Search titles, folders, typed text and PDF text"
+        placeholder="Search titles, folders, typed text, PDF text and formulas"
         aria-label="Search"
         autoFocus
         value={q}
@@ -107,6 +112,22 @@ export function SearchPage() {
               <Link to={`/library/f/${f.folderId}`} className="result-doc">
                 <span aria-hidden="true">📁</span> {f.title}
               </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {formulas.length > 0 && (
+        <ul className="results" aria-label="Formulas">
+          {formulas.map((f) => (
+            <li key={f.id} className="result-group">
+              <Link to={`/study/formulas/${f.formulaId}`} className="result-doc">
+                <span aria-hidden="true">∑</span> {f.title}
+              </Link>
+              {f.snippet && (
+                <Link to={`/study/formulas/${f.formulaId}`} className="result-page">
+                  <Snippet segments={f.snippet} />
+                </Link>
+              )}
             </li>
           ))}
         </ul>

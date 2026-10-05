@@ -5,7 +5,7 @@ import type { SearchHit } from './searchIndex';
 
 export type WorkerIn =
   | { t: 'rebuild' }
-  | { t: 'sync'; docs: string[]; folders: string[] }
+  | { t: 'sync'; docs: string[]; folders: string[]; formulas?: boolean }
   | { t: 'search'; id: number; q: string };
 
 export type WorkerOut =
@@ -33,6 +33,7 @@ self.onmessage = (e: MessageEvent<WorkerIn>) => {
         await engine.rebuild((p) => post({ t: 'progress', ...p }));
         post({ t: 'ready' });
       } else {
+        if (m.formulas) await engine.syncFormulas();
         for (const f of m.folders) await engine.syncFolder(f);
         for (const d of m.docs) await engine.syncDocument(d);
         post({ t: 'ready' });

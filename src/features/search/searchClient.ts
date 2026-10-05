@@ -31,6 +31,7 @@ class SearchClient {
   private started = false;
   private dirtyDocs = new Set<string>();
   private dirtyFolders = new Set<string>();
+  private dirtyFormulas = false;
   private timer: number | undefined;
 
   start(): void {
@@ -88,7 +89,8 @@ class SearchClient {
     });
   }
 
-  private mark(doc?: string | null, folder?: string | null) {
+  private mark(doc?: string | null, folder?: string | null, formulas = false) {
+    if (formulas) this.dirtyFormulas = true;
     if (doc) this.dirtyDocs.add(doc);
     if (folder) this.dirtyFolders.add(folder);
     window.clearTimeout(this.timer);
@@ -100,14 +102,17 @@ class SearchClient {
     const folders = [...this.dirtyFolders];
     this.dirtyDocs.clear();
     this.dirtyFolders.clear();
-    if (!docs.length && !folders.length) return;
+    const formulas = this.dirtyFormulas;
+    this.dirtyFormulas = false;
+    if (!docs.length && !folders.length && !formulas) return;
     if (this.inline) {
       void (async () => {
+        if (formulas) await this.inline!.syncFormulas();
         for (const f of folders) await this.inline!.syncFolder(f);
         for (const d of docs) await this.inline!.syncDocument(d);
         useSearchStatus.setState((s) => ({ version: s.version + 1 }));
       })();
-    } else this.send({ t: 'sync', docs, folders });
+    } else this.send({ t: 'sync', docs, folders, formulas });
   }
 
   /**
@@ -161,6 +166,15 @@ class SearchClient {
       'deleting',
       safe((_k: unknown, obj?: { documentId?: string }) => byDoc(obj)),
     );
+    // Formulas and their notes: any change re-indexes the (small) formula set.
+    for (const table of [db.formulas, db.formulaProgress]) {
+      for (const ev of ['creating', 'updating', 'deleting'] as const) {
+        (table.hook as (e: string, fn: () => void) => void)(
+          ev,
+          safe(() => this.mark(null, null, true)),
+        );
+      }
+    }
     db.searchText.hook(
       'creating',
       safe((_k: unknown, obj?: { documentId?: string }) => byDoc(obj)),
