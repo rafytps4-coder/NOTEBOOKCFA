@@ -81,6 +81,9 @@ test('Core MVP checklist: the whole journey', async ({ page }) => {
         ev('pointermove', 150 + i * 14, 160 + Math.sin(i / 3) * 18, 0.2 + (i % 5) * 0.12);
       ev('pointerup', 430, 160, 0.1);
     }, id);
+  // Live canvases are (re)mounted shortly after scrolling stops; wait for page 1's canvas to be the first.
+  await expect.poll(async () => (await hostBox(page)).y).toBeLessThan(500);
+  await page.waitForTimeout(500);
   await penStroke(5);
   await expect.poll(() => storedStrokes(page)).toBe(1);
   await expect.poll(() => inkPixels(page, { x: 100, y: 100, w: 500, h: 150 })).toBeGreaterThan(50);
