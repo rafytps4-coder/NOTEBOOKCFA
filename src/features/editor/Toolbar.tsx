@@ -21,6 +21,7 @@ export interface ToolbarActions {
   cut: () => void;
   paste: () => void;
   insertImages: (files: File[]) => void;
+  createFlashcard: () => void;
 }
 
 export function Toolbar({ actions }: { actions: ToolbarActions }) {
@@ -95,6 +96,14 @@ export function Toolbar({ actions }: { actions: ToolbarActions }) {
         </button>
         <button className="btn" onClick={actions.paste}>
           Paste
+        </button>
+        <button
+          className="btn"
+          disabled={!s.hasSelection}
+          onClick={actions.createFlashcard}
+          title="Make a flashcard from the selection"
+        >
+          Flashcard
         </button>
         <button className="btn danger" disabled={!s.hasSelection} onClick={actions.deleteSelection}>
           Delete

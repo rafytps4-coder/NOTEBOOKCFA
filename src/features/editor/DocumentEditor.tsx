@@ -13,6 +13,8 @@ import { PageStylePanel } from './PageStylePanel';
 import { PageView } from './PageView';
 import { activeController } from './pageRegistry';
 import { Toolbar } from './Toolbar';
+import { renderSelectionPng } from './selectionSnapshot';
+import { CreateFromSelection, type SelectionDraft } from '../study/CreateFromSelection';
 import { ToolOptionsPanel } from './ToolOptionsPanel';
 import { useEditorStore } from './editorStore';
 import { useEditorSettings } from './useEditorSettings';
@@ -74,6 +76,7 @@ export function DocumentEditor({
     | { t: 'wipe' }
     | null
   >(null);
+  const [cardDraft, setCardDraft] = useState<SelectionDraft | null>(null);
   const [, bump] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const isPdf = doc.kind === 'pdf';
@@ -262,6 +265,23 @@ export function DocumentEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions, index, goTo, afterAdd, viewMode]);
 
+  async function startFlashcard() {
+    const c = activeController();
+    const pageId = useEditorStore.getState().activePageId;
+    const info = c?.selectionInfo();
+    if (!c || !pageId || !info) return;
+    const text = info.objects
+      .flatMap((o) => (o.type === 'text' ? [o.text.trim()] : []))
+      .filter(Boolean)
+      .join('\n');
+    setCardDraft({
+      documentId: doc.id,
+      pageId,
+      text,
+      snapshot: await renderSelectionPng(info),
+    });
+  }
+
   const resetView = () => {
     if (viewMode === 'continuous') setZoomState(null);
     else activeController()?.resetView();
@@ -421,6 +441,7 @@ export function DocumentEditor({
           <progress value={job.done} max={job.total} />
         </div>
       )}
+      {cardDraft && <CreateFromSelection draft={cardDraft} onClose={() => setCardDraft(null)} />}
       <Toolbar
         actions={{
           undo: () => activeController()?.undo(),
@@ -431,6 +452,7 @@ export function DocumentEditor({
           cut: () => activeController()?.cutSelection(),
           paste: () => activeController()?.paste(),
           insertImages: (f) => void insertImages(f),
+          createFlashcard: () => void startFlashcard(),
         }}
       />
       {saveState === 'full' && (

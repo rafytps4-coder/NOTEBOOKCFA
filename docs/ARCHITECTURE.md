@@ -25,14 +25,15 @@ Rules:
 
 ## 2. Data model (IndexedDB via Dexie)
 
-| Table                           | Purpose                                                                                                       | Status                     |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------- |
-| `folders`                       | id, name, parentId, favorite, createdAt, updatedAt, deletedAt                                                 | prompt 01                  |
-| `documents`                     | id, kind (`notebook` \| `pdf` \| `quickNote`), title, folderId, favorite, lastOpenedAt, deletedAt, timestamps | prompt 01                  |
-| `pages`                         | id, documentId, order, template, size, background, bookmark, strokes, objects                                 | stub in 01, filled 02–04   |
-| `assets`                        | id, blob, mime, size, kind (image/pdf) — **blobs live apart from metadata**                                   | prompt 01                  |
-| `settings`                      | key → value                                                                                                   | prompt 01                  |
-| Study / Formula / Helper tables | flashcards, schedules, formulas, helper state                                                                 | _(planned, prompts 08–10)_ |
+| Table                                                                                                                   | Purpose                                                                                                       | Status                     |
+| ----------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- | -------------------------- |
+| `folders`                                                                                                               | id, name, parentId, favorite, createdAt, updatedAt, deletedAt                                                 | prompt 01                  |
+| `documents`                                                                                                             | id, kind (`notebook` \| `pdf` \| `quickNote`), title, folderId, favorite, lastOpenedAt, deletedAt, timestamps | prompt 01                  |
+| `pages`                                                                                                                 | id, documentId, order, template, size, background, bookmark, strokes, objects                                 | stub in 01, filled 02–04   |
+| `assets`                                                                                                                | id, blob, mime, size, kind (image/pdf) — **blobs live apart from metadata**                                   | prompt 01                  |
+| `settings`                                                                                                              | key → value                                                                                                   | prompt 01                  |
+| `studySets`, `flashcards`, `reviewLogs`, `studySessions`, `questions`, `quizResults`, `mistakes`, `tags`, `studyAssets` | generic study system (db v5, additive)                                                                        | prompt 08                  |
+| Formula / Helper tables                                                                                                 | formulas, formula progress, helper instances                                                                  | _(planned, prompts 09–10)_ |
 
 IDs are UUID strings. Times are epoch ms. Deletion is soft (`deletedAt`) until the user chooses "Delete forever".
 Schema is versioned with Dexie `version().stores()`; migrations must preserve data.
@@ -83,6 +84,15 @@ Built in prompt 01: `src/core/` holds `models`, `db` (Dexie v1), repositories (`
 - **Narrow layouts**: below 600 px the editor chrome collapses to two single-row, sideways-scrolling bars and the options panel starts collapsed so the page keeps the room; below 500 px the options panel scrolls internally.
 - **Resilience**: `StorageGate` opens IndexedDB before rendering and explains blocked storage; `ErrorBoundary` replaces a crashed screen with a calm message; a full disk (`QuotaExceededError`, matched by name because Dexie wraps it) shows a clear banner, keeps the data in memory and retries on the next change; `pageIntegrity.ts` validates page content on load (keeps valid items, stores the raw damaged data in `pageBackup` as `corrupt:<pageId>`, falls back to a rate-limited `previous:<pageId>` last-good copy written before each save). Dexie v4 added `pageBackup` (additive).
 - **Privacy check**: the Core MVP e2e records every network request during the whole journey and asserts none leave localhost.
+
+## 6d. Study system (built in prompt 08)
+
+- **Generic**: nothing in `engines/study`, `core/study*.ts` or `features/study` knows about any subject or Helper. Route `/study` (own nav item); sets → cards → review session, a question bank with quiz mode, and a mistake log.
+- **Scheduler** (`engines/study`): `Scheduler` interface with one SM-2-style implementation (`sm2.ts`). Pure functions with the clock passed in (`reviewCard(state, rating, now)`), no random fuzz, so history is reproducible. Rules: new/learning cards → _Again_/_Hard_ return in 10 min, _Good_ graduates to 1 day, _Easy_ to 4 days; review cards → _Good_ = gap × ease (≥ +1 day), _Hard_ = gap × 1.2 and ease −0.15, _Easy_ = gap × ease × 1.3 and ease +0.15, _Again_ = lapse (ease −0.2, back to learning, +1 lapse). Ease is clamped to 1.3–3.2, the gap to 10 years. `queue.ts` builds the study queue (overdue first, then new cards) and due counts (due = by the end of today); `stats.ts` computes statistics from review logs only; `weakAreas.ts` ranks tags by logged mistakes.
+- **Data**: a card keeps its schedule state inline (`sched`) and every answer appends a `reviewLogs` row in the same transaction. Card images live in `studyAssets` (separate from notebook `assets`, so notebook clean-up never removes them; an image is deleted when no card uses it). Cards have a nullable `formulaId` (used by prompt 09) and an optional `sourceRef` (document + page) that links back to the notebook page they came from. Tags are a natural-keyed table (`name`) that cards, questions and mistakes refer to by name.
+- **Questions**: multiple choice or short answer (case/space-insensitive match), tags, difficulty. Quiz results go to `quizResults`; a wrong answer offers to log a mistake. JSON import/export (`core/questionsIO.ts`) validates the whole file with Ajv before adding anything.
+- **From a notebook**: the toolbar's _Flashcard_ button takes the selection (`CanvasController.selectionInfo()`): text from text boxes pre-fills the front, and a PNG snapshot of the selected strokes/objects (no page background) can be attached. Handwriting is never converted to text.
+- **Backup**: library backups include all study tables (`backup/extraTables.ts`: per-table id spaces and link fields). Merge gives colliding ids new ids and rewrites every link (card → set/image/notebook page, log → card/set/session, result/mistake → question). Replace only clears tables the backup actually contains, so restoring a backup from before study existed never wipes flashcards. Single-notebook files carry no study data.
 
 ## 7. Helper plugin interface _(planned, prompt 10)_
 

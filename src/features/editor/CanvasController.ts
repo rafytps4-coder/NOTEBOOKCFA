@@ -416,6 +416,17 @@ export class CanvasController {
     this.o.onToolChange?.('lasso');
   }
 
+  /** What is selected, for features that turn a selection into something else (e.g. a flashcard). */
+  selectionInfo(): { strokes: Stroke[]; objects: PageObject[]; bounds: Rect } | null {
+    const bounds = this.selectionBounds();
+    if (!bounds) return null;
+    return {
+      strokes: this.store.strokes.filter((x) => this.selStrokes.has(x.id)),
+      objects: this.store.objects.filter((o) => this.selObjs.has(o.id)),
+      bounds,
+    };
+  }
+
   singleSelectedObject(): PageObject | null {
     if (this.selStrokes.size || this.selObjs.size !== 1) return null;
     const id = [...this.selObjs][0];

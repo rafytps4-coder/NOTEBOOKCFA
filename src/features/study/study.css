@@ -1,0 +1,176 @@
+.study-grid {
+  list-style: none;
+  margin: 0 0 16px;
+  padding: 0;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fill, minmax(15rem, 1fr));
+}
+.study-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  color: var(--text);
+  text-decoration: none;
+}
+.study-card h3 {
+  margin: 0;
+  font-size: 1.05rem;
+}
+.counts {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.counts .badge strong {
+  color: var(--text);
+}
+.stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
+  gap: 8px;
+  margin: 12px 0;
+}
+.stats div {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+}
+.stats dt {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.stats dd {
+  margin: 0;
+  font-size: 1.3rem;
+  font-weight: 600;
+}
+.row-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.row-list li {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.row-list .grow {
+  flex: 1;
+  min-width: 0;
+}
+.row-list .clip {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tag {
+  display: inline-block;
+  padding: 1px 8px;
+  margin: 2px 4px 0 0;
+  border-radius: 999px;
+  background: var(--surface-2);
+  font-size: 0.78rem;
+  color: var(--text-muted);
+}
+.review {
+  max-width: 40rem;
+  margin: 0 auto;
+}
+.review-card {
+  min-height: 12rem;
+  padding: 20px;
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  justify-content: center;
+  font-size: 1.25rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.review-card hr {
+  width: 100%;
+  border: 0;
+  border-top: 1px dashed var(--border);
+}
+.card-img {
+  max-width: 100%;
+  max-height: 16rem;
+  object-fit: contain;
+  align-self: center;
+  border-radius: 8px;
+}
+.rating-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  margin-top: 12px;
+}
+.rating-row .btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: 3.5rem;
+}
+.rating-row small {
+  color: var(--text-muted);
+}
+.progress {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--surface-2);
+  margin: 8px 0 16px;
+  overflow: hidden;
+}
+.progress > div {
+  height: 100%;
+  background: var(--accent);
+}
+textarea.study-text {
+  width: 100%;
+  min-height: 5rem;
+  font: inherit;
+  padding: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  color: var(--text);
+}
+.choice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 6px 0;
+}
+.choice.right {
+  outline: 2px solid #2e7d32;
+  border-radius: 8px;
+}
+.choice.wrong {
+  outline: 2px solid #b3261e;
+  border-radius: 8px;
+}
+.form-grid {
+  display: grid;
+  gap: 12px;
+  min-width: min(30rem, 80vw);
+}
+@media (max-width: 600px) {
+  .rating-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

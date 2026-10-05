@@ -6,6 +6,14 @@ import { LibraryPage } from './features/library/LibraryPage';
 import { RecentPage } from './features/library/RecentPage';
 import { EditorPage } from './features/editor/EditorPage';
 import { SearchPage } from './features/search/SearchPage';
+import { StudyLayout } from './features/study/StudyLayout';
+import { SetsPage } from './features/study/SetsPage';
+import { SetPage } from './features/study/SetPage';
+import { ReviewSession } from './features/study/ReviewSession';
+import { QuestionsPage } from './features/study/QuestionsPage';
+import { QuizSession } from './features/study/QuizSession';
+import { MistakesPage } from './features/study/MistakesPage';
+import { MistakeReview } from './features/study/MistakeReview';
 import { UpdatePrompt } from './features/pwa/UpdatePrompt';
 import { FirstRunGuide } from './features/help/FirstRunGuide';
 import { ShortcutsHost } from './features/help/ShortcutsDialog';
@@ -15,6 +23,7 @@ import { ErrorBoundary } from './ui/ErrorBoundary';
 const NAV = [
   { to: '/library', label: 'Library', icon: '▤' },
   { to: '/recent', label: 'Recent', icon: '◷' },
+  { to: '/study', label: 'Study', icon: '🗂' },
   { to: '/search', label: 'Search', icon: '⌕' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ] as const;
@@ -49,6 +58,15 @@ export function App() {
             <Route path="/library/trash" element={<LibraryPage mode="trash" />} />
             <Route path="/recent" element={<RecentPage />} />
             <Route path="/doc/:id" element={<EditorPage />} />
+            <Route path="/study" element={<StudyLayout />}>
+              <Route index element={<SetsPage />} />
+              <Route path="set/:id" element={<SetPage />} />
+              <Route path="set/:id/review" element={<ReviewSession />} />
+              <Route path="questions" element={<QuestionsPage />} />
+              <Route path="quiz" element={<QuizSession />} />
+              <Route path="mistakes" element={<MistakesPage />} />
+              <Route path="mistakes/review" element={<MistakeReview />} />
+            </Route>
             <Route path="/search" element={<SearchPage />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/library" replace />} />
