@@ -1,4 +1,4 @@
-import { getPageContent, type Stroke } from '@/core';
+import { getPageContent, type PageInk } from '@/core';
 import type { CanvasController } from './CanvasController';
 import { useEditorStore } from './editorStore';
 import type { PageSaver, SaveState } from './PageSaver';
@@ -7,14 +7,15 @@ import type { PageSaver, SaveState } from './PageSaver';
  * Latest in-memory ink per page. Pages are unmounted when scrolled far away; the saver flushes
  * asynchronously, so a quick remount must not read stale data from the database.
  */
-const inkCache = new Map<string, Stroke[]>();
+const inkCache = new Map<string, PageInk>();
 
-export function cacheInk(pageId: string, strokes: Stroke[]): void {
-  inkCache.set(pageId, strokes);
+export function cacheInk(pageId: string, content: PageInk): void {
+  inkCache.set(pageId, content);
 }
 
-export async function loadInk(pageId: string): Promise<Stroke[]> {
-  return inkCache.get(pageId) ?? (await getPageContent(pageId)).strokes;
+export async function loadInk(pageId: string): Promise<PageInk> {
+  const c = await getPageContent(pageId);
+  return inkCache.get(pageId) ?? { strokes: c.strokes, objects: c.objects };
 }
 
 export function clearInkCache(): void {

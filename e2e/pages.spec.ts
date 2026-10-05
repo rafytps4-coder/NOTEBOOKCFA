@@ -63,11 +63,14 @@ test('add, duplicate, move, delete+undo, bookmark, template change; all survive 
   await expect(page.getByRole('button', { name: /^Go to page \d/ })).toHaveCount(1);
   await page.getByRole('button', { name: '★ Bookmarks' }).click();
 
-  // Template change: ink untouched
+  // Template change on page 1: ink untouched
+  await page.getByRole('button', { name: /^Go to page 1/ }).click();
+  await expect(label(page)).toHaveText(/Page 1 of 4/);
   await page.getByRole('button', { name: 'Page style' }).click();
   await page.getByLabel('Template').selectOption('grid');
   await page.getByRole('button', { name: 'Done' }).click();
-  await expect.poll(() => inkPixels(page, { x: 200, y: 200, w: 300, h: 100 })).toBeGreaterThan(50);
+  // (zoom changed when the sidebar opened, so look at a generous area)
+  await expect.poll(() => inkPixels(page, { x: 100, y: 120, w: 600, h: 200 })).toBeGreaterThan(50);
 
   await expect(page.locator('.save-state', { hasText: /^Saved$/ })).toBeVisible({ timeout: 5000 });
   await page.reload();
@@ -187,7 +190,7 @@ test('default template and size from Settings apply to a new notebook; later pag
   await page.getByLabel('Template').selectOption('ruled');
   await page.getByLabel('Size').selectOption('Letter');
   await page.getByLabel('Orientation').selectOption('landscape');
-  await page.waitForTimeout(300);
+  await page.waitForTimeout(700); // let the settings writes land
   await createNotebook(page, 'Defaults');
   await page.getByRole('button', { name: 'Page style' }).click();
   await expect(page.getByLabel('Template')).toHaveValue('ruled');

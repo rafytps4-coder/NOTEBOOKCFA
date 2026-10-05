@@ -1,6 +1,12 @@
-import { useEffect, useRef } from 'react';
-import { setPageThumbnail, setThumbnail, type NotebookDocument, type Page } from '@/core';
-import { CanvasController, type NavRequest } from './CanvasController';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ensureAssetInDocument,
+  setPageThumbnail,
+  setThumbnail,
+  type NotebookDocument,
+  type Page,
+} from '@/core';
+import { CanvasController, type EditTextRequest, type NavRequest } from './CanvasController';
 import { PageSaver } from './PageSaver';
 import { PerfOverlay } from './PerfOverlay';
 import { activeOptions, useEditorStore } from './editorStore';
@@ -15,6 +21,7 @@ import {
   unregisterController,
 } from './pageRegistry';
 import { renderThumbnail } from './thumbnail';
+import { TextEditorOverlay } from './TextEditorOverlay';
 
 interface Props {
   doc: NotebookDocument;
@@ -34,11 +41,14 @@ export function PageView({ doc, page, pageNumber, pageCount, fixedScale, onNavig
   const ctrlRef = useRef<CanvasController | null>(null);
   const pageRef = useRef(page);
   pageRef.current = page;
+  const scaleRef = useRef(fixedScale);
+  scaleRef.current = fixedScale; // the controller is built asynchronously: read the latest zoom
   const navRef = useRef(onNavigate);
   navRef.current = onNavigate;
   const thumbRef = useRef<() => void>(() => {});
   const tool = useEditorStore((s) => s.tool);
   const perf = useEditorStore((s) => s.perfOverlay);
+  const [edit, setEdit] = useState<EditTextRequest | null>(null);
 
   useEffect(() => {
     const host = hostRef.current;
@@ -57,7 +67,7 @@ export function PageView({ doc, page, pageNumber, pageCount, fixedScale, onNavig
       const c = controller;
       if (!c) return;
       const p = pageRef.current;
-      const blob = await renderThumbnail(c.strokes, p);
+      const blob = await renderThumbnail(c.content(), p);
       if (!blob) return;
       await setPageThumbnail(doc.id, pageId, blob);
       if (p.order === 0) await setThumbnail(doc.id, blob);
@@ -68,12 +78,12 @@ export function PageView({ doc, page, pageNumber, pageCount, fixedScale, onNavig
       thumbTimer = window.setTimeout(() => void makeThumb(), 1500);
     };
 
-    void loadInk(pageId).then((strokes) => {
+    void loadInk(pageId).then((ink) => {
       if (cancelled) return;
       const store = useEditorStore;
       const s = new PageSaver(
         pageId,
-        () => controller!.strokes,
+        () => controller!.content(),
         (st) => reportSave(pageId, st),
         () => thumbRef.current(),
       );
@@ -84,16 +94,27 @@ export function PageView({ doc, page, pageNumber, pageCount, fixedScale, onNavig
         committed,
         live,
         page: pageRef.current,
-        strokes,
-        fixedScale,
+        strokes: ink.strokes,
+        objects: ink.objects,
+        fixedScale: scaleRef.current,
         getTool: () => {
           const st = store.getState();
-          return { tool: st.tool, options: activeOptions(st), inputMode: st.inputMode };
+          return {
+            tool: st.tool,
+            options: activeOptions(st),
+            inputMode: st.inputMode,
+            text: st.text,
+            shape: st.shape,
+            shapeSnap: st.shapeSnap,
+          };
         },
-        onStrokesChanged: (st) => {
-          cacheInk(pageId, st);
+        onChanged: (content) => {
+          cacheInk(pageId, content);
           s.markDirty();
         },
+        onEditText: setEdit,
+        onToolChange: (t) => store.getState().setTool(t),
+        resolveAsset: (assetId) => ensureAssetInDocument(assetId, doc.id),
         onUi: (p) => {
           if (store.getState().activePageId !== pageId) return;
           if (fixedScale !== undefined) delete p.zoomPct; // the container owns zoom in this mode
@@ -148,6 +169,15 @@ export function PageView({ doc, page, pageNumber, pageCount, fixedScale, onNavig
     >
       <canvas ref={committedRef} className="layer" />
       <canvas ref={liveRef} className="layer" />
+      {edit && ctrlRef.current && (
+        <TextEditorOverlay
+          key={edit.obj.id}
+          req={edit}
+          view={ctrlRef.current.viewState()}
+          onCommit={(t) => ctrlRef.current?.commitText(t)}
+          onCancel={() => ctrlRef.current?.cancelText()}
+        />
+      )}
       {perf && <PerfOverlay controller={ctrlRef.current} />}
     </div>
   );

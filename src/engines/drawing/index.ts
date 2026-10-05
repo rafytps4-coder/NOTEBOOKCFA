@@ -4,3 +4,6 @@ export * from './history';
 export * from './view';
 export * from './render';
 export * from './templates';
+export * from './objects';
+export * from './textLayout';
+export * from './shapeSnap';

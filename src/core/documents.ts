@@ -1,6 +1,6 @@
 import { db } from './db';
 import { newId, now } from './ids';
-import { ROOT_ID, type DocumentKind, type NotebookDocument } from './models';
+import { ROOT_ID, type DocumentKind, type NotebookDocument, type PageObject } from './models';
 import { sortItems, type SortOptions } from './sort';
 
 export async function getDocument(id: string): Promise<NotebookDocument | undefined> {
@@ -92,15 +92,24 @@ export async function copyDocumentRows(
   );
   const idMap = new Map(pages.map((p) => [p.id, newId()]));
   await db.pages.bulkAdd(pages.map((p) => ({ ...p, id: idMap.get(p.id)!, documentId: copy.id })));
+  // Image assets get new ids in the copy, so rewrite the page objects that point at them.
+  const srcAssets = (await db.assets.where('documentId').equals(src.id).toArray()).filter(
+    (a) => a.name !== 'page-thumbnail', // page thumbnails are keyed by page id; regenerated lazily
+  );
+  const assetMap = new Map(srcAssets.map((a) => [a.id, newId()]));
+  const remap = (objects: PageObject[] | undefined): PageObject[] =>
+    (objects ?? []).map((o) =>
+      o.type === 'image' ? { ...o, assetId: assetMap.get(o.assetId) ?? o.assetId } : o,
+    );
   const contents = await db.pageContent.bulkGet(pages.map((p) => p.id));
   await db.pageContent.bulkAdd(
-    contents.flatMap((c) => (c ? [{ ...c, pageId: idMap.get(c.pageId)! }] : [])),
+    contents.flatMap((c) =>
+      c ? [{ ...c, pageId: idMap.get(c.pageId)!, objects: remap(c.objects) }] : [],
+    ),
   );
-  // Page thumbnails are keyed by page id; they are regenerated lazily for the copy.
-  const assets = (await db.assets.where('documentId').equals(src.id).toArray()).filter(
-    (a) => a.name !== 'page-thumbnail',
+  await db.assets.bulkAdd(
+    srcAssets.map((a) => ({ ...a, id: assetMap.get(a.id)!, documentId: copy.id })),
   );
-  await db.assets.bulkAdd(assets.map((a) => ({ ...a, id: newId(), documentId: copy.id })));
   return copy;
 }
 

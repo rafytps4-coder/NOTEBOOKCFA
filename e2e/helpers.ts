@@ -28,7 +28,8 @@ export async function inkPixels(
 ) {
   return page.evaluate(
     ({ r, test }) => {
-      const c = document.querySelectorAll<HTMLCanvasElement>('.canvas-host canvas')[0]!;
+      const c = document.querySelectorAll<HTMLCanvasElement>('.canvas-host canvas')[0];
+      if (!c || !c.clientWidth) return 0;
       const k = c.width / c.clientWidth;
       const d = c.getContext('2d')!.getImageData(r.x * k, r.y * k, r.w * k, r.h * k).data;
       let n = 0;
@@ -148,4 +149,55 @@ export async function pageCount(page: Page): Promise<number> {
         open.onerror = () => reject(open.error);
       }),
   );
+}
+
+type StoredObject = Record<string, unknown> & {
+  id: string;
+  type: string;
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+  rot: number;
+};
+
+async function readStore<T>(page: Page, store: string): Promise<T[]> {
+  return page.evaluate(
+    (name) =>
+      new Promise<unknown[]>((resolve, reject) => {
+        const open = indexedDB.open('notebook');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const req = db.transaction(name).objectStore(name).getAll();
+          req.onsuccess = () => {
+            db.close();
+            resolve(req.result);
+          };
+          req.onerror = () => reject(req.error);
+        };
+      }) as Promise<never>,
+    store,
+  ) as Promise<T[]>;
+}
+
+export async function storedObjects(page: Page): Promise<StoredObject[]> {
+  const rows = await readStore<{ objects?: StoredObject[] }>(page, 'pageContent');
+  return rows.flatMap((r) => r.objects ?? []);
+}
+
+export async function storedImageAssets(page: Page) {
+  const rows = await readStore<{ id: string; kind: string; size: number }>(page, 'assets');
+  return rows.filter((a) => a.kind === 'image');
+}
+
+/** Page-space point (A4 portrait: 794 px wide) → screen coordinates of the first page. */
+export async function pageToScreen(page: Page, x: number, y: number) {
+  const box = await hostBox(page);
+  const k = box.width / 794;
+  return { x: box.x + x * k, y: box.y + y * k, k };
+}
+
+export async function waitSaved(page: Page) {
+  await expect(page.locator('.save-state', { hasText: /^Saved$/ })).toBeVisible({ timeout: 6000 });
 }

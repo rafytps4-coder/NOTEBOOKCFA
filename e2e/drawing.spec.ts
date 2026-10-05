@@ -176,7 +176,7 @@ test('presets can be saved, applied, renamed and deleted', async ({ page }) => {
   await page.reload();
   await expect(page.getByRole('button', { name: 'Marker', exact: true })).toBeVisible();
   await page.getByRole('button', { name: 'Delete preset Marker' }).click();
-  await page.getByRole('button', { name: 'Delete', exact: true }).click();
+  await page.getByRole('dialog').getByRole('button', { name: 'Delete', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Marker', exact: true })).toHaveCount(0);
 });
 

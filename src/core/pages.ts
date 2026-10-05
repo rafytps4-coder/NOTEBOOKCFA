@@ -5,6 +5,7 @@ import {
   DEFAULT_TEMPLATE,
   type Page,
   type PageContent,
+  type PageObject,
   type PageSizeName,
   type PageTemplate,
   type Stroke,
@@ -120,7 +121,11 @@ export async function duplicatePage(pageId: string): Promise<Page> {
     const content = await db.pageContent.get(pageId);
     const copy = await insertPage(src.documentId, src.order + 1, styleOf(src));
     await db.pages.update(copy.id, { bookmarked: src.bookmarked });
-    await db.pageContent.put({ pageId: copy.id, strokes: content?.strokes ?? [] });
+    await db.pageContent.put({
+      pageId: copy.id,
+      strokes: content?.strokes ?? [],
+      objects: content?.objects ?? [],
+    });
     return copy;
   });
 }
@@ -185,17 +190,29 @@ export async function purgeDeletedPages(documentId: string): Promise<number> {
 
 export const pageThumbId = (pageId: string) => `pagethumb:${pageId}`;
 
-export async function getPageContent(pageId: string): Promise<PageContent> {
-  return (await db.pageContent.get(pageId)) ?? { pageId, strokes: [] };
+export async function getPageContent(pageId: string): Promise<Required<PageContent>> {
+  const c = await db.pageContent.get(pageId);
+  return { pageId, strokes: c?.strokes ?? [], objects: c?.objects ?? [] };
 }
 
-export async function savePageStrokes(pageId: string, strokes: Stroke[]): Promise<void> {
+export interface PageInk {
+  strokes: Stroke[];
+  objects: PageObject[];
+}
+
+export async function savePageContent(pageId: string, content: PageInk): Promise<void> {
   const t = now();
   await db.transaction('rw', db.pages, db.pageContent, db.documents, async () => {
     const page = await db.pages.get(pageId);
     if (!page) return; // page was purged while a save was pending
-    await db.pageContent.put({ pageId, strokes });
+    await db.pageContent.put({ pageId, strokes: content.strokes, objects: content.objects });
     await db.pages.update(pageId, { updatedAt: t });
     await db.documents.update(page.documentId, { updatedAt: t });
   });
+}
+
+/** Ink-only convenience used by older call sites and tests; keeps existing objects. */
+export async function savePageStrokes(pageId: string, strokes: Stroke[]): Promise<void> {
+  const existing = await getPageContent(pageId);
+  await savePageContent(pageId, { strokes, objects: existing.objects });
 }

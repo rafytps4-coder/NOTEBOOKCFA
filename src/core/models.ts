@@ -77,9 +77,52 @@ export interface Page {
   updatedAt: number;
 }
 
+/** Fields every page object shares. Position is the centre; rotation is radians about the centre. */
+export interface ObjectBase {
+  id: string;
+  cx: number;
+  cy: number;
+  w: number;
+  h: number;
+  rot: number;
+  z: number;
+}
+
+export interface TextObject extends ObjectBase {
+  type: 'text';
+  text: string;
+  fontSize: number;
+  color: string;
+  bold: boolean;
+  italic: boolean;
+}
+
+export type ShapeKind = 'line' | 'arrow' | 'rect' | 'ellipse' | 'triangle';
+
+export interface ShapeObject extends ObjectBase {
+  type: 'shape';
+  shape: ShapeKind;
+  stroke: string;
+  strokeWidth: number;
+  fill: string | null;
+  /** line/arrow only: endpoints as 0|1 fractions of the box (start x/y, end x/y). */
+  ends?: [number, number, number, number];
+}
+
+export interface ImageObject extends ObjectBase {
+  type: 'image';
+  assetId: string;
+  /** Visible part of the source image, as fractions trimmed from each side. */
+  crop: { l: number; t: number; r: number; b: number };
+}
+
+export type PageObject = TextObject | ShapeObject | ImageObject;
+
 export interface PageContent {
   pageId: string;
   strokes: Stroke[];
+  /** Text boxes, shapes and images (absent in rows written before prompt 04). */
+  objects?: PageObject[];
 }
 
 export type AssetKind = 'pdf' | 'image' | 'thumbnail';

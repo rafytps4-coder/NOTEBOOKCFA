@@ -1,4 +1,6 @@
 import { create } from 'zustand';
+import type { PageObject } from '@/engines/drawing';
+import { DEFAULT_SHAPE, DEFAULT_TEXT, type ShapeOptions, type TextOptions } from './objectFactory';
 import {
   DEFAULT_TOOL_OPTIONS,
   INK_TOOLS,
@@ -17,10 +19,15 @@ interface EditorState {
   options: Record<InkTool, ToolOptions>;
   presets: ToolPreset[];
   inputMode: InputMode;
+  text: TextOptions;
+  shape: ShapeOptions;
+  shapeSnap: boolean;
   // Reported by the canvas controller
   canUndo: boolean;
   canRedo: boolean;
   hasSelection: boolean;
+  /** The single selected object, when exactly one object (and no ink) is selected. */
+  selectedObject: PageObject | null;
   zoomPct: number;
   saveState: SaveState;
   perfOverlay: boolean;
@@ -30,6 +37,9 @@ interface EditorState {
   setTool: (t: EditorTool) => void;
   setOption: (patch: Partial<ToolOptions>) => void;
   setInputMode: (m: InputMode) => void;
+  setText: (p: Partial<TextOptions>) => void;
+  setShape: (p: Partial<ShapeOptions>) => void;
+  setShapeSnap: (on: boolean) => void;
   savePreset: (name: string) => void;
   renamePreset: (id: string, name: string) => void;
   deletePreset: (id: string) => void;
@@ -50,9 +60,13 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   options: structuredClone(DEFAULT_TOOL_OPTIONS),
   presets: [],
   inputMode: 'pencilAndFinger',
+  text: DEFAULT_TEXT,
+  shape: DEFAULT_SHAPE,
+  shapeSnap: false,
   canUndo: false,
   canRedo: false,
   hasSelection: false,
+  selectedObject: null,
   zoomPct: 100,
   saveState: 'saved',
   perfOverlay: false,
@@ -65,6 +79,9 @@ export const useEditorStore = create<EditorState>((set, get) => ({
     set({ options: { ...options, [tool]: { ...options[tool], ...patch } } });
   },
   setInputMode: (inputMode) => set({ inputMode }),
+  setText: (p) => set({ text: { ...get().text, ...p } }),
+  setShape: (p) => set({ shape: { ...get().shape, ...p } }),
+  setShapeSnap: (shapeSnap) => set({ shapeSnap }),
   savePreset: (name) => {
     const { tool, options, presets } = get();
     if (!isInkTool(tool)) return;

@@ -16,6 +16,8 @@ import { Toolbar } from './Toolbar';
 import { ToolOptionsPanel } from './ToolOptionsPanel';
 import { useEditorStore } from './editorStore';
 import { useEditorSettings } from './useEditorSettings';
+import { clearImageCache } from './imageCache';
+import { importImageFile } from './imageImport';
 
 type ViewMode = 'continuous' | 'single';
 const SAVE_LABEL = {
@@ -49,6 +51,7 @@ export function DocumentEditor({
     { t: 'delete'; page: Page } | { t: 'move'; page: Page; index: number } | { t: 'last' } | null
   >(null);
   const [, bump] = useState(0);
+  const [notice, setNotice] = useState<string | null>(null);
   const saveState = useEditorStore((s) => s.saveState);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
@@ -221,6 +224,25 @@ export function DocumentEditor({
     else activeController()?.resetView();
   };
 
+  const insertImages = async (files: File[]) => {
+    setNotice(null);
+    for (const file of files) {
+      const c = activeController();
+      if (!c) {
+        setNotice('Tap or draw on a page first, then choose an image.');
+        return;
+      }
+      try {
+        const img = await importImageFile(file, doc.id);
+        c.insertImage(img.assetId, img.width, img.height);
+      } catch (e) {
+        setNotice(e instanceof Error ? e.message : 'Could not add the image.');
+      }
+    }
+  };
+
+  useEffect(() => () => clearImageCache(), []);
+
   const askDelete = (page: Page) =>
     pages.length <= 1 ? setDlg({ t: 'last' }) : setDlg({ t: 'delete', page });
 
@@ -270,8 +292,17 @@ export function DocumentEditor({
           copy: () => activeController()?.copySelection(),
           cut: () => activeController()?.cutSelection(),
           paste: () => activeController()?.paste(),
+          insertImages: (f) => void insertImages(f),
         }}
       />
+      {notice && (
+        <p role="alert" className="notice error-notice">
+          {notice}
+          <button className="btn" onClick={() => setNotice(null)}>
+            Dismiss
+          </button>
+        </p>
+      )}
       <ToolOptionsPanel />
       {styleOpen && current && (
         <PageStylePanel

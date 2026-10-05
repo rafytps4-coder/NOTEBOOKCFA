@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { PALETTE } from '@/engines/drawing';
 import { ConfirmDialog, PromptDialog } from '@/ui/Dialogs';
+import { activeController } from './pageRegistry';
+import { CropControls, ShapeControls, TextControls, describeObject } from './ObjectOptions';
 import { activeOptions, isInkTool, useEditorStore } from './editorStore';
 
 export function ToolOptionsPanel() {
@@ -12,13 +14,82 @@ export function ToolOptionsPanel() {
     | null
   >(null);
 
+  const sel = s.selectedObject;
+  const patch = (p: Record<string, unknown>, key: string) =>
+    activeController()?.patchSelected(p, key);
+
+  // A selected object is edited in place, whichever tool is active.
+  if (sel && s.tool === 'lasso') {
+    return (
+      <div className="options" aria-label="Object options">
+        <strong>{describeObject(sel)}</strong>
+        {sel.type === 'text' && <TextControls value={sel} onChange={patch} />}
+        {sel.type === 'shape' && (
+          <ShapeControls
+            showKinds={false}
+            value={{ stroke: sel.stroke, width: sel.strokeWidth, fill: sel.fill }}
+            onChange={(p, key) =>
+              patch(
+                {
+                  ...(p.stroke !== undefined ? { stroke: p.stroke } : {}),
+                  ...(p.width !== undefined ? { strokeWidth: p.width } : {}),
+                  ...(p.fill !== undefined ? { fill: p.fill } : {}),
+                },
+                key,
+              )
+            }
+          />
+        )}
+        {sel.type === 'image' && (
+          <CropControls obj={sel} onCrop={(c) => activeController()?.cropSelected(c)} />
+        )}
+        <div className="btn-row" role="group" aria-label="Arrange">
+          <button className="btn" onClick={() => activeController()?.bringToFront()}>
+            Bring to front
+          </button>
+          <button className="btn" onClick={() => activeController()?.sendToBack()}>
+            Send to back
+          </button>
+          <button className="btn danger" onClick={() => activeController()?.deleteSelection()}>
+            Delete
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (s.tool === 'text') {
+    return (
+      <div className="options" aria-label="Text options">
+        <TextControls value={s.text} onChange={(p) => s.setText(p)} />
+        <p className="muted">Tap the page to add a text box. Tap an existing one to edit it.</p>
+      </div>
+    );
+  }
+  if (s.tool === 'shape') {
+    return (
+      <div className="options" aria-label="Shape options">
+        <ShapeControls
+          showKinds
+          value={{
+            kind: s.shape.kind,
+            stroke: s.shape.stroke,
+            width: s.shape.width,
+            fill: s.shape.fill,
+          }}
+          onChange={(p) => s.setShape(p)}
+        />
+        <p className="muted">Drag on the page to draw. A tap drops a default-size shape.</p>
+      </div>
+    );
+  }
   if (!isInkTool(s.tool)) {
     return (
       <div className="options" aria-label="Tool options">
         <p className="muted">
           {s.tool === 'eraser'
-            ? 'Eraser removes whole strokes it touches. Undo brings them back.'
-            : 'Draw a loop around ink to select it. Drag inside the box to move it.'}
+            ? 'Eraser removes whole ink strokes it touches. Undo brings them back.'
+            : 'Tap an object, or draw a loop around ink and objects, to select. Drag to move.'}
         </p>
       </div>
     );
@@ -102,6 +173,16 @@ export function ToolOptionsPanel() {
           Save current as preset
         </button>
       </div>
+      {s.tool !== 'highlighter' && (
+        <label className="check">
+          <input
+            type="checkbox"
+            checked={s.shapeSnap}
+            onChange={(e) => s.setShapeSnap(e.target.checked)}
+          />
+          Snap to shapes (hold still at the end of a stroke)
+        </label>
+      )}
 
       {dlg?.t === 'save' && (
         <PromptDialog

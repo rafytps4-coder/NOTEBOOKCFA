@@ -6,7 +6,8 @@ import {
   PAGE_DEFAULTS_KEY,
   type PageDefaults,
 } from '@/features/editor/pageDefaults';
-import type { TemplateKind } from '@/core';
+import { cleanupOrphanAssets, findOrphanAssets, type TemplateKind } from '@/core';
+import { useState } from 'react';
 
 const MODES: { id: ThemeMode; label: string }[] = [
   { id: 'system', label: 'System' },
@@ -17,7 +18,15 @@ const MODES: { id: ThemeMode; label: string }[] = [
 export function SettingsPage() {
   const { mode, setMode } = useThemeStore();
   const [defaults, setDefaults] = useSetting<Partial<PageDefaults>>(PAGE_DEFAULTS_KEY, {});
-  const pd = { ...FALLBACK_DEFAULTS, ...defaults };
+  // Local copy updates immediately so quick successive changes never overwrite each other.
+  const [localDefaults, setLocalDefaults] = useState<Partial<PageDefaults>>({});
+  const pd = { ...FALLBACK_DEFAULTS, ...defaults, ...localDefaults };
+  const updateDefaults = (patch: Partial<PageDefaults>) => {
+    const next = { ...pd, ...patch };
+    setLocalDefaults(next);
+    setDefaults(next);
+  };
+  const [cleanup, setCleanup] = useState<string | null>(null);
   const [input, setInput] = useSetting<InputMode>('editor.inputMode', 'pencilAndFinger');
   return (
     <section>
@@ -65,7 +74,7 @@ export function SettingsPage() {
           Template
           <select
             value={pd.kind}
-            onChange={(e) => setDefaults({ ...pd, kind: e.target.value as TemplateKind })}
+            onChange={(e) => updateDefaults({ kind: e.target.value as TemplateKind })}
           >
             {['blank', 'ruled', 'grid', 'dotted', 'cornell'].map((k) => (
               <option key={k} value={k}>
@@ -79,7 +88,7 @@ export function SettingsPage() {
           <select
             value={pd.sizeName}
             onChange={(e) =>
-              setDefaults({ ...pd, sizeName: e.target.value as PageDefaults['sizeName'] })
+              updateDefaults({ sizeName: e.target.value as PageDefaults['sizeName'] })
             }
           >
             <option>A4</option>
@@ -92,7 +101,7 @@ export function SettingsPage() {
           <select
             value={pd.orientation}
             onChange={(e) =>
-              setDefaults({ ...pd, orientation: e.target.value as PageDefaults['orientation'] })
+              updateDefaults({ orientation: e.target.value as PageDefaults['orientation'] })
             }
           >
             <option value="portrait">Portrait</option>
@@ -102,6 +111,28 @@ export function SettingsPage() {
       </div>
       <p className="muted">
         Used for the first page of new notebooks. Pages you add later copy the page before them.
+      </p>
+      <h2 id="storage">Storage</h2>
+      <div className="btn-row" role="group" aria-labelledby="storage">
+        <button
+          type="button"
+          className="btn"
+          onClick={async () => {
+            const { report } = await findOrphanAssets();
+            if (report.count === 0)
+              return setCleanup('Nothing to clean up: every stored image is in use.');
+            const done = await cleanupOrphanAssets();
+            setCleanup(
+              `Removed ${done.count} unused image${done.count === 1 ? '' : 's'} (${(done.bytes / 1024).toFixed(0)} KB).`,
+            );
+          }}
+        >
+          Clean up storage
+        </button>
+      </div>
+      <p className="muted" role="status">
+        {cleanup ??
+          'Removes images that are no longer used on any page. Close open notebooks first; things you can still undo are kept until then.'}
       </p>
     </section>
   );

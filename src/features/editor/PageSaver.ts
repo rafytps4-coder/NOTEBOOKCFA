@@ -1,4 +1,4 @@
-import { savePageStrokes, type Stroke } from '@/core';
+import { savePageContent, type PageInk } from '@/core';
 
 export type SaveState = 'saved' | 'unsaved' | 'saving' | 'error';
 
@@ -14,7 +14,7 @@ export class PageSaver {
 
   constructor(
     private pageId: string,
-    private getStrokes: () => Stroke[],
+    private getContent: () => PageInk,
     private onState: (s: SaveState) => void,
     private onSaved: () => void,
     private delay = 700,
@@ -45,8 +45,8 @@ export class PageSaver {
     if (!this.dirty) return;
     this.dirty = false;
     this.onState('saving');
-    const strokes = this.getStrokes();
-    this.inflight = savePageStrokes(this.pageId, strokes)
+    const content = this.getContent();
+    this.inflight = savePageContent(this.pageId, content)
       .then(() => {
         if (this.disposed) return;
         this.onState(this.dirty ? 'unsaved' : 'saved');

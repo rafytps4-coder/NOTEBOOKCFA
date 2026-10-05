@@ -1,3 +1,4 @@
+import { cleanupOrphanAssets } from './assets';
 import { db } from './db';
 import { copyDocumentRows } from './documents';
 import { descendantFolderIds } from './folders';
@@ -113,6 +114,7 @@ export async function emptyTrash(): Promise<void> {
   const { folders, documents } = await listTrash();
   for (const f of folders) await permanentDeleteFolder(f.id);
   for (const d of documents) await permanentDeleteDocument(d.id);
+  await cleanupOrphanAssets(); // safe point: the user chose to empty the trash
 }
 
 /** Deep copy of a folder subtree (folders, documents, pages, assets). Returns the new root. */

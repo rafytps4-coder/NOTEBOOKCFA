@@ -1,46 +1,84 @@
 import {
   History,
   StrokeStore,
-  addStrokes,
+  addItems,
   clampView,
   cloneStrokes,
-  drawStrokes,
+  cropImage,
+  drawPaper,
   drawStroke,
+  drawStrokes,
+  fitInside,
   fitView,
+  hitHandle,
   liveOutline,
-  moveStrokes,
+  minZ,
+  moveItems,
+  nextZ,
+  objectBounds,
+  objectsInPolygon,
   outlineToPath,
   paintPath,
+  patchObjects,
+  pointInPolygon,
   pointInRect,
+  recognizeShape,
+  removeItems,
   removeStrokes,
+  resizeObject,
+  rotateObject,
   screenToPage,
   strokeBounds,
   strokeHitsCircle,
   strokesInPolygon,
+  topObjectAt,
   unionRects,
   visiblePageRect,
   zoomAt,
   type EditorTool,
+  type HandleId,
+  type PageObject,
+  type Recognized,
   type Rect,
   type Stroke,
   type StrokeTool,
+  type TextObject,
   type ToolOptions,
   type Vec,
   type View,
 } from '@/engines/drawing';
 import { newId } from '@/core/ids';
-import type { PageTemplate } from '@/core/models';
-import { drawPaper } from '@/engines/drawing';
+import type { ImageObject, PageTemplate } from '@/core/models';
+import { subscribeImages } from './imageCache';
 import { NavGesture } from './NavGesture';
+import {
+  HANDLE_HIT_PX,
+  ROTATE_GAP_PX,
+  drawHandles,
+  drawObject,
+  drawObjects,
+  neededTextHeight,
+} from './objectRender';
+import {
+  makeImage,
+  makeShape,
+  makeText,
+  type ShapeOptions,
+  type TextOptions,
+} from './objectFactory';
 import { PointBuffer } from './PointBuffer';
 
 export type InputMode = 'pencilOnly' | 'pencilAndFinger';
 
 export interface ToolState {
   tool: EditorTool;
-  /** Options for the active ink tool (ignored for eraser/lasso). */
+  /** Options for the active ink tool (ignored for eraser/lasso/text/shape). */
   options: ToolOptions;
   inputMode: InputMode;
+  text: TextOptions;
+  shape: ShapeOptions;
+  /** Hold still at the end of a pen/pencil stroke to turn it into a clean shape. */
+  shapeSnap: boolean;
 }
 
 export interface UiPatch {
@@ -48,6 +86,8 @@ export interface UiPatch {
   canRedo?: boolean;
   hasSelection?: boolean;
   zoomPct?: number;
+  /** The single selected object (when only one object is selected), for the options panel. */
+  selectedObject?: PageObject | null;
 }
 
 export interface PerfStats {
@@ -74,6 +114,16 @@ export interface NavRequest {
   reset?: boolean;
 }
 
+export interface PageInkContent {
+  strokes: Stroke[];
+  objects: PageObject[];
+}
+
+export interface EditTextRequest {
+  obj: TextObject;
+  isNew: boolean;
+}
+
 export interface ControllerOptions {
   host: HTMLElement;
   committed: HTMLCanvasElement;
@@ -85,20 +135,29 @@ export interface ControllerOptions {
   /** Called when the user starts working on this page (so undo/redo target it). */
   onActivate?: () => void;
   strokes: Stroke[];
+  objects: PageObject[];
   getTool(): ToolState;
-  onStrokesChanged(strokes: Stroke[]): void;
+  onChanged(content: PageInkContent): void;
   onUi(patch: UiPatch): void;
+  /** Ask the UI to show a text editor over the page, or hide it (null). */
+  onEditText?: (req: EditTextRequest | null) => void;
+  /** Switch tool (e.g. back to Select after creating an object). */
+  onToolChange?: (tool: EditorTool) => void;
+  /** Make an image asset available to this notebook before a pasted copy refers to it. */
+  resolveAsset?: (assetId: string) => Promise<string>;
 }
 
-type Mode = 'idle' | 'draw' | 'erase' | 'lasso' | 'move' | 'nav';
+type Mode = 'idle' | 'draw' | 'erase' | 'lasso' | 'move' | 'nav' | 'xform' | 'shape';
 
 /** In-memory clipboard shared across pages for the session. */
-let clipboard: Stroke[] = [];
+let clipboard: PageInkContent = { strokes: [], objects: [] };
 
 const ERASER_PX = 10;
 const MAX_DPR = 3;
 const MAX_CANVAS_PIXELS = 14_000_000; // keep within iPad Safari canvas limits
 const SELECT_COLOR = '#1a5fd0';
+const SNAP_HOLD_MS = 550;
+const MERGE_MS = 1000;
 
 /**
  * Owns the two canvases (committed + live), the view transform, pointer handling and the
@@ -127,17 +186,32 @@ export class CanvasController {
   private processed = 0; // buffer index handled so far (eraser)
   private hover: Vec | null = null;
   private pendingErase = new Set<string>();
-  private selected = new Set<string>();
+  private selStrokes = new Set<string>();
+  private selObjs = new Set<string>();
   private moveOrigin: Vec = { x: 0, y: 0 };
   private moveOffset: Vec = { x: 0, y: 0 };
   private nav = new NavGesture();
   private lastTap = { t: 0, x: 0, y: 0 };
   private tapStart = { t: 0, x: 0, y: 0, moved: false };
 
+  // object gestures
+  private xformStart: PageObject | null = null;
+  private xformCur: PageObject | null = null;
+  private xformHandle: HandleId | null = null;
+  private shapeStart: Vec | null = null;
+  private editing: EditTextRequest | null = null;
+  private keepSelectionUntil = 0;
+  private lastMove = 0;
+  private snapped: Recognized | null = null;
+  private mergeKey = '';
+  private mergeTime = 0;
+  private mergeBefore: PageObject[] = [];
+
   private raf = 0;
   private committedDirty = true;
   private liveDirty = true;
   private ro: ResizeObserver;
+  private offImages: () => void;
   private disposed = false;
 
   // perf counters (cheap writes only)
@@ -150,7 +224,7 @@ export class CanvasController {
   constructor(private o: ControllerOptions) {
     this.look = o.page;
     this.fixedScale = o.fixedScale;
-    this.store = new StrokeStore(o.strokes);
+    this.store = new StrokeStore(o.strokes, o.objects);
     this.history = new History(this.store);
     this.history.subscribe(() => this.afterHistory());
     const c = o.committed.getContext('2d');
@@ -169,11 +243,23 @@ export class CanvasController {
     h.addEventListener('contextmenu', this.prevent);
     this.ro = new ResizeObserver(() => this.resize());
     this.ro.observe(h);
+    this.offImages = subscribeImages(() => {
+      this.committedDirty = true;
+      this.schedule();
+    });
     this.resize(true);
   }
 
   get strokes(): Stroke[] {
     return this.store.strokes;
+  }
+
+  get objects(): PageObject[] {
+    return this.store.objects;
+  }
+
+  content(): PageInkContent {
+    return { strokes: this.store.strokes, objects: this.store.objects };
   }
 
   get pageSize() {
@@ -184,10 +270,16 @@ export class CanvasController {
     return { frameMs: this.frameMs, pointsPerSec: this.pointsPerSec };
   }
 
+  /** Current page→screen transform (host-local px), for positioning the text editor. */
+  viewState(): View {
+    return this.view;
+  }
+
   dispose(): void {
     this.disposed = true;
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
+    this.offImages();
     const h = this.o.host;
     h.removeEventListener('pointerdown', this.onDown);
     h.removeEventListener('pointermove', this.onMove);
@@ -204,7 +296,8 @@ export class CanvasController {
     return {
       canUndo: this.history.canUndo,
       canRedo: this.history.canRedo,
-      hasSelection: this.selected.size > 0,
+      hasSelection: this.hasSelection(),
+      selectedObject: this.singleSelectedObject(),
       ...(this.fixedScale === undefined ? { zoomPct: Math.round(this.view.scale * 100) } : {}),
     };
   }
@@ -217,7 +310,12 @@ export class CanvasController {
   }
 
   setTool(): void {
+    if (performance.now() < this.keepSelectionUntil) {
+      this.keepSelectionUntil = 0; // we switched to Select ourselves after creating an object
+      return;
+    }
     // Switching tools drops any selection and unfinished gesture.
+    this.cancelText();
     this.clearSelection();
     this.liveDirty = true;
     this.schedule();
@@ -248,13 +346,16 @@ export class CanvasController {
   }
 
   deleteSelection(): void {
-    if (!this.selected.size) return;
-    this.history.exec(removeStrokes([...this.selected], 'delete'));
+    if (!this.hasSelection()) return;
+    this.history.exec(removeItems([...this.selStrokes], [...this.selObjs], 'delete'));
     this.clearSelection();
   }
 
   copySelection(): void {
-    clipboard = this.store.strokes.filter((s) => this.selected.has(s.id));
+    clipboard = {
+      strokes: this.store.strokes.filter((s) => this.selStrokes.has(s.id)),
+      objects: this.store.objects.filter((o) => this.selObjs.has(o.id)),
+    };
   }
 
   cutSelection(): void {
@@ -262,13 +363,145 @@ export class CanvasController {
     this.deleteSelection();
   }
 
-  paste(): void {
-    if (!clipboard.length) return;
-    const copies = cloneStrokes(clipboard);
-    this.history.exec(addStrokes(copies));
-    this.selected = new Set(copies.map((c) => c.id));
+  async paste(): Promise<void> {
+    if (!clipboard.strokes.length && !clipboard.objects.length) return;
+    const strokes = cloneStrokes(clipboard.strokes);
+    let z = nextZ(this.store.objects);
+    const objects: PageObject[] = [];
+    for (const src of clipboard.objects) {
+      let copy: PageObject = { ...src, id: newId(), cx: src.cx + 24, cy: src.cy + 24, z: z++ };
+      if (copy.type === 'image' && this.o.resolveAsset) {
+        copy = { ...copy, assetId: await this.o.resolveAsset(copy.assetId) };
+      }
+      objects.push(copy);
+    }
+    this.history.exec(addItems(strokes, objects, 'paste'));
+    this.selStrokes = new Set(strokes.map((s) => s.id));
+    this.selObjs = new Set(objects.map((o) => o.id));
     this.emitSelection();
     this.liveDirty = true;
+    this.schedule();
+  }
+
+  /** Insert an image object at the centre of what is visible and select it. */
+  insertImage(assetId: string, natW: number, natH: number): void {
+    const centre =
+      this.fixedScale === undefined
+        ? screenToPage(this.view, this.vp.w / 2, this.vp.h / 2)
+        : { x: this.look.width / 2, y: this.look.height / 2 };
+    const maxW = this.look.width * 0.6;
+    const maxH = this.look.height * 0.5;
+    const size = fitInside(natW, natH, maxW, maxH);
+    const obj = makeImage(assetId, centre.x, centre.y, size.w, size.h, this.store.objects);
+    this.history.exec(addItems([], [obj], 'insert image'));
+    this.selectOnly(obj.id);
+    this.switchToSelect();
+  }
+
+  /** After creating an object: go to Select with that object still selected (handles visible). */
+  private switchToSelect(): void {
+    // The UI's tool-change effect calls setTool() a moment later; it must not drop this selection.
+    // The window is short so it can't swallow a genuine tool change if the tool didn't change.
+    this.keepSelectionUntil = performance.now() + 400;
+    this.o.onToolChange?.('lasso');
+  }
+
+  singleSelectedObject(): PageObject | null {
+    if (this.selStrokes.size || this.selObjs.size !== 1) return null;
+    const id = [...this.selObjs][0];
+    return this.store.objects.find((o) => o.id === id) ?? null;
+  }
+
+  /** Change properties of the selected object(s) (colour, size, text style…). Undo-friendly. */
+  patchSelected(patch: Record<string, unknown>, mergeKey: string): void {
+    const before = this.store.objects.filter((o) => this.selObjs.has(o.id));
+    if (!before.length) return;
+    const after = before.map((o) => {
+      const next = { ...o, ...patch } as PageObject;
+      if (next.type === 'text') next.h = Math.max(next.h, neededTextHeight(next));
+      return next;
+    });
+    this.execMerged(before, after, mergeKey, 'format');
+  }
+
+  cropSelected(crop: ImageObject['crop']): void {
+    const o = this.singleSelectedObject();
+    if (!o || o.type !== 'image') return;
+    this.execMerged([o], [cropImage(o, crop)], 'crop', 'crop');
+  }
+
+  bringToFront(): void {
+    this.reorder((objs) => nextZ(objs));
+  }
+
+  sendToBack(): void {
+    this.reorder((objs) => minZ(objs));
+  }
+
+  private reorder(zFor: (all: PageObject[]) => number): void {
+    const before = this.store.objects.filter((o) => this.selObjs.has(o.id));
+    if (!before.length) return;
+    const base = zFor(this.store.objects);
+    const step = base >= 0 ? 1 : -1;
+    const after = before.map((o, i) => ({ ...o, z: base + i * step }));
+    this.history.exec(patchObjects(before, after, 'reorder'));
+  }
+
+  /** Apply an object edit; repeated edits with the same key within a second form one undo step. */
+  private execMerged(before: PageObject[], after: PageObject[], key: string, label: string): void {
+    const now = performance.now();
+    if (this.mergeKey === key && now - this.mergeTime < MERGE_MS && this.history.canUndo) {
+      this.history.undo();
+      this.history.exec(patchObjects(this.mergeBefore, after, label));
+    } else {
+      this.mergeBefore = before;
+      this.history.exec(patchObjects(before, after, label));
+    }
+    this.mergeKey = key;
+    this.mergeTime = now;
+  }
+
+  // ---- text editing --------------------------------------------------------
+
+  private beginEditText(obj: TextObject, isNew: boolean): void {
+    this.editing = { obj, isNew };
+    this.committedDirty = true;
+    this.o.onEditText?.(this.editing);
+    this.schedule();
+  }
+
+  /** Finish editing with the final text. Empty boxes are discarded. */
+  commitText(text: string): void {
+    const e = this.editing;
+    if (!e) return;
+    this.editing = null;
+    this.o.onEditText?.(null);
+    const empty = text.trim() === '';
+    if (e.isNew) {
+      if (!empty) {
+        const obj: TextObject = { ...e.obj, text };
+        obj.h = Math.max(obj.h, neededTextHeight(obj));
+        this.history.exec(addItems([], [obj], 'add text'));
+        this.selectOnly(obj.id);
+        this.switchToSelect();
+      }
+    } else if (empty) {
+      this.history.exec(removeItems([], [e.obj.id], 'delete'));
+      this.clearSelection();
+    } else if (text !== e.obj.text) {
+      const next: TextObject = { ...e.obj, text };
+      next.h = Math.max(next.h, neededTextHeight(next));
+      this.history.exec(patchObjects([e.obj], [next], 'edit text'));
+    }
+    this.committedDirty = this.liveDirty = true;
+    this.schedule();
+  }
+
+  cancelText(): void {
+    if (!this.editing) return;
+    this.editing = null;
+    this.o.onEditText?.(null);
+    this.committedDirty = true;
     this.schedule();
   }
 
@@ -306,25 +539,40 @@ export class CanvasController {
     this.o.onUi({ zoomPct: Math.round(this.view.scale * 100) });
   }
 
+  private hasSelection() {
+    return this.selStrokes.size > 0 || this.selObjs.size > 0;
+  }
+
   private emitSelection() {
-    this.o.onUi({ hasSelection: this.selected.size > 0 });
+    this.o.onUi({ hasSelection: this.hasSelection(), selectedObject: this.singleSelectedObject() });
   }
 
   private afterHistory(): void {
-    const alive = new Set(this.store.strokes.map((s) => s.id));
-    for (const id of this.selected) if (!alive.has(id)) this.selected.delete(id);
+    const strokeIds = new Set(this.store.strokes.map((s) => s.id));
+    const objIds = new Set(this.store.objects.map((o) => o.id));
+    for (const id of this.selStrokes) if (!strokeIds.has(id)) this.selStrokes.delete(id);
+    for (const id of this.selObjs) if (!objIds.has(id)) this.selObjs.delete(id);
     this.emitSelection();
     this.o.onUi({ canUndo: this.history.canUndo, canRedo: this.history.canRedo });
-    this.o.onStrokesChanged(this.store.strokes);
+    this.o.onChanged(this.content());
     this.committedDirty = this.liveDirty = true;
     this.schedule();
   }
 
   private clearSelection() {
-    if (!this.selected.size) return;
-    this.selected = new Set();
+    if (!this.hasSelection()) return;
+    this.selStrokes = new Set();
+    this.selObjs = new Set();
     this.emitSelection();
     this.liveDirty = true;
+  }
+
+  private selectOnly(objectId: string) {
+    this.selStrokes = new Set();
+    this.selObjs = new Set([objectId]);
+    this.emitSelection();
+    this.committedDirty = this.liveDirty = true;
+    this.schedule();
   }
 
   // ---- pointer path (no allocation beyond the event objects) -------------
@@ -342,6 +590,9 @@ export class CanvasController {
   }
 
   private onDown = (e: PointerEvent): void => {
+    if (e.target instanceof HTMLTextAreaElement) return; // typing in the text editor overlay
+    // Tapping the page while editing text ends the edit (preventDefault below would keep focus).
+    if (this.editing) (document.activeElement as HTMLElement | null)?.blur();
     if (e.pointerType === 'pen') this.penSeen = true;
     // Palm rejection: while the pen (or mouse) is drawing, touches are ignored entirely.
     if (e.pointerType === 'touch' && this.drawPointer >= 0 && this.penSeen) return;
@@ -374,46 +625,118 @@ export class CanvasController {
     }
     if (!this.canDraw(e) || this.mode !== 'idle') return;
 
-    this.drawPointer = e.pointerId;
-    const { tool, options } = this.o.getTool();
+    const ts = this.o.getTool();
     const p = screenToPage(this.view, x, y);
+    this.drawPointer = e.pointerId;
     this.strokeStart = e.timeStamp;
+    this.lastMove = e.timeStamp;
+    this.snapped = null;
     this.buf.clear();
     this.livePts.length = 0;
     this.processed = 0;
     this.hover = p;
 
-    if (tool === 'eraser') {
-      this.mode = 'erase';
-      this.pendingErase.clear();
-      this.pushPoint(e, p.x, p.y);
-    } else if (tool === 'lasso') {
-      const box = this.selectionBounds();
-      if (box && pointInRect(p, box)) {
-        this.mode = 'move';
-        this.moveOrigin = p;
-        this.moveOffset = { x: 0, y: 0 };
-        this.committedDirty = true; // redraw without the selected strokes
-      } else {
-        this.clearSelection();
-        this.mode = 'lasso';
+    switch (ts.tool) {
+      case 'eraser':
+        this.mode = 'erase';
+        this.pendingErase.clear();
         this.pushPoint(e, p.x, p.y);
-      }
-    } else {
-      this.mode = 'draw';
-      this.liveStyle = {
-        tool: tool as StrokeTool,
-        color: options.color,
-        width: options.width,
-        opacity: options.opacity,
-        sim: e.pointerType !== 'pen',
-      };
-      this.o.live.style.mixBlendMode = tool === 'highlighter' ? 'multiply' : 'normal';
-      this.pushPoint(e, p.x, p.y);
+        break;
+      case 'lasso':
+        this.startSelect(e, p);
+        break;
+      case 'text':
+        this.startText(p);
+        return;
+      case 'shape':
+        this.mode = 'shape';
+        this.shapeStart = p;
+        break;
+      default:
+        this.mode = 'draw';
+        this.liveStyle = {
+          tool: ts.tool as StrokeTool,
+          color: ts.options.color,
+          width: ts.options.width,
+          opacity: ts.options.opacity,
+          sim: e.pointerType !== 'pen',
+        };
+        this.o.live.style.mixBlendMode = ts.tool === 'highlighter' ? 'multiply' : 'normal';
+        this.pushPoint(e, p.x, p.y);
     }
     this.liveDirty = true;
     this.schedule();
   };
+
+  /** Select tool: handles → move selection → pick an object → otherwise lasso. */
+  private startSelect(e: PointerEvent, p: Vec): void {
+    const single = this.singleSelectedObject();
+    if (single) {
+      const px = 1 / this.view.scale;
+      // Small objects: keep the middle of the body free of handle hit areas so it can be moved.
+      const reach = Math.min(
+        HANDLE_HIT_PX * px,
+        Math.max(6 * px, Math.min(single.w, single.h) * 0.3),
+      );
+      const h = hitHandle(single, p.x, p.y, reach, ROTATE_GAP_PX * px, HANDLE_HIT_PX * px);
+      if (h) {
+        this.mode = 'xform';
+        this.xformHandle = h;
+        this.xformStart = single;
+        this.xformCur = single;
+        this.committedDirty = true;
+        return;
+      }
+    }
+    const hit = topObjectAt(this.store.objects, p.x, p.y, 4 / this.view.scale);
+    if (hit) {
+      // Double-tap on text edits it (also when it is already selected).
+      const now = e.timeStamp;
+      const t = this.lastTap;
+      const again = now - t.t < 400 && Math.hypot(p.x - t.x, p.y - t.y) < 12;
+      this.lastTap = { t: again ? 0 : now, x: p.x, y: p.y };
+      if (hit.type === 'text' && again) {
+        this.selectOnly(hit.id);
+        this.drawPointer = -1;
+        this.beginEditText(hit, false);
+        return;
+      }
+    }
+    const box = this.selectionBounds();
+    if (box && pointInRect(p, box)) {
+      this.beginMove(p);
+      return;
+    }
+    if (hit) {
+      this.selStrokes = new Set();
+      this.selObjs = new Set([hit.id]);
+      this.emitSelection();
+      this.beginMove(p);
+      return;
+    }
+    this.clearSelection();
+    this.mode = 'lasso';
+    this.pushPoint(e, p.x, p.y);
+  }
+
+  private beginMove(p: Vec): void {
+    this.mode = 'move';
+    this.moveOrigin = p;
+    this.moveOffset = { x: 0, y: 0 };
+    this.committedDirty = true; // redraw without the selected items
+  }
+
+  /** Text tool: tap an existing text box to edit it, otherwise start a new one. */
+  private startText(p: Vec): void {
+    this.drawPointer = -1; // one-shot: no drag follows
+    const hit = topObjectAt(this.store.objects, p.x, p.y);
+    if (hit && hit.type === 'text') {
+      this.selectOnly(hit.id);
+      this.beginEditText(hit, false);
+    } else {
+      this.beginEditText(makeText(p.x, p.y, this.o.getTool().text, this.store.objects), true);
+    }
+  }
 
   private pushPoint(e: PointerEvent, px: number, py: number): void {
     const pressure = e.pointerType === 'pen' ? Math.max(0.05, e.pressure) : 0.5;
@@ -439,11 +762,14 @@ export class CanvasController {
     if (e.pointerId !== this.drawPointer) return;
     const evs = e.getCoalescedEvents?.();
     const list = evs && evs.length ? evs : [e];
+    this.lastMove = e.timeStamp;
     for (const ev of list) {
       const p = screenToPage(this.view, ev.clientX - this.rect.left, ev.clientY - this.rect.top);
       this.hover = p;
       if (this.mode === 'move') {
         this.moveOffset = { x: p.x - this.moveOrigin.x, y: p.y - this.moveOrigin.y };
+      } else if (this.mode === 'xform' || this.mode === 'shape') {
+        /* handled in the frame loop from `hover` */
       } else {
         this.pushPoint(ev, p.x, p.y);
       }
@@ -520,17 +846,29 @@ export class CanvasController {
     this.mode = 'idle';
     this.drawPointer = -1;
     if (mode === 'draw' && this.liveStyle) {
-      const points = [];
-      for (let i = 0; i < this.buf.n; i++) {
-        points.push({
-          x: this.buf.x(i),
-          y: this.buf.y(i),
-          pressure: this.buf.pressure(i),
-          t: this.buf.t(i),
-        });
+      if (this.snapped) {
+        const s = this.snapped;
+        const obj = makeShape(
+          { x: s.box.x, y: s.box.y },
+          { x: s.box.x + s.box.w, y: s.box.y + s.box.h },
+          { kind: s.shape, stroke: this.liveStyle.color, width: this.liveStyle.width, fill: null },
+          this.store.objects,
+        );
+        if (s.ends) obj.ends = s.ends;
+        this.history.exec(addItems([], [obj], 'snap shape'));
+      } else {
+        const points = [];
+        for (let i = 0; i < this.buf.n; i++) {
+          points.push({
+            x: this.buf.x(i),
+            y: this.buf.y(i),
+            pressure: this.buf.pressure(i),
+            t: this.buf.t(i),
+          });
+        }
+        const stroke: Stroke = { id: newId(), ...this.liveStyle, points };
+        this.history.exec(addItems([stroke], []));
       }
-      const stroke: Stroke = { id: newId(), ...this.liveStyle, points };
-      this.history.exec(addStrokes([stroke]));
     } else if (mode === 'erase') {
       this.flushEraser();
       if (this.pendingErase.size) this.history.exec(removeStrokes([...this.pendingErase]));
@@ -538,13 +876,26 @@ export class CanvasController {
     } else if (mode === 'lasso') {
       const poly: Vec[] = [];
       for (let i = 0; i < this.buf.n; i++) poly.push({ x: this.buf.x(i), y: this.buf.y(i) });
-      this.selected = new Set(strokesInPolygon(this.store.strokes, poly).map((s) => s.id));
+      this.selStrokes = new Set(strokesInPolygon(this.store.strokes, poly).map((s) => s.id));
+      this.selObjs = new Set(
+        objectsInPolygon(this.store.objects, poly, pointInPolygon).map((o) => o.id),
+      );
       this.emitSelection();
     } else if (mode === 'move') {
       const { x, y } = this.moveOffset;
-      if (x !== 0 || y !== 0) this.history.exec(moveStrokes([...this.selected], x, y));
+      if (x !== 0 || y !== 0) {
+        this.history.exec(moveItems([...this.selStrokes], [...this.selObjs], x, y));
+      }
+    } else if (mode === 'xform' && this.xformStart && this.xformCur) {
+      this.finishXform();
+    } else if (mode === 'shape' && this.shapeStart) {
+      this.finishShape();
     }
     this.liveStyle = null;
+    this.snapped = null;
+    this.xformStart = this.xformCur = null;
+    this.xformHandle = null;
+    this.shapeStart = null;
     this.buf.clear();
     this.livePts.length = 0;
     this.hover = null;
@@ -553,10 +904,42 @@ export class CanvasController {
     this.schedule();
   }
 
+  private finishXform(): void {
+    let next = this.xformCur!;
+    if (next.type === 'text') next = { ...next, h: Math.max(next.h, neededTextHeight(next)) };
+    if (JSON.stringify(next) !== JSON.stringify(this.xformStart)) {
+      this.history.exec(
+        patchObjects(
+          [this.xformStart!],
+          [next],
+          this.xformHandle === 'rotate' ? 'rotate' : 'resize',
+        ),
+      );
+    }
+  }
+
+  private finishShape(): void {
+    const ts = this.o.getTool();
+    const a = this.shapeStart!;
+    const b = this.hover ?? a;
+    const tiny = Math.hypot(b.x - a.x, b.y - a.y) * this.view.scale < 8;
+    // A plain tap drops a default-sized shape (lines/arrows get a horizontal stroke).
+    const flat = ts.shape.kind === 'line' || ts.shape.kind === 'arrow';
+    const end = tiny ? { x: a.x + 120, y: a.y + (flat ? 0 : 90) } : b;
+    const obj = makeShape(a, end, ts.shape, this.store.objects);
+    this.history.exec(addItems([], [obj], 'add shape'));
+    this.selectOnly(obj.id);
+    this.switchToSelect();
+  }
+
   private abortAction(): void {
     this.mode = 'idle';
     this.drawPointer = -1;
     this.liveStyle = null;
+    this.snapped = null;
+    this.xformStart = this.xformCur = null;
+    this.xformHandle = null;
+    this.shapeStart = null;
     this.buf.clear();
     this.livePts.length = 0;
     this.pendingErase.clear();
@@ -585,6 +968,8 @@ export class CanvasController {
     }
 
     if (this.mode === 'erase') this.flushEraser();
+    if (this.mode === 'xform') this.updateXform();
+    if (this.mode === 'draw') this.checkSnap(performance.now());
     if (this.committedDirty) {
       this.renderCommitted();
       this.committedDirty = false;
@@ -595,6 +980,31 @@ export class CanvasController {
     }
     if (this.mode !== 'idle' && this.mode !== 'nav') this.schedule();
   };
+
+  private updateXform(): void {
+    if (!this.xformStart || !this.hover || !this.xformHandle) return;
+    const s = this.xformStart;
+    const p = this.hover;
+    if (this.xformHandle === 'rotate') this.xformCur = rotateObject(s, p.x, p.y, true);
+    else {
+      const keep = s.type === 'image';
+      this.xformCur = resizeObject(s, this.xformHandle, p.x, p.y, keep);
+    }
+    this.liveDirty = true;
+  }
+
+  /** Hold still at the end of a pen/pencil stroke → preview a clean shape. */
+  private checkSnap(now: number): void {
+    if (this.snapped || !this.liveStyle || this.liveStyle.tool === 'highlighter') return;
+    if (!this.o.getTool().shapeSnap || this.buf.n < 8) return;
+    if (now - this.lastMove < SNAP_HOLD_MS) return; // event timestamps share performance.now()'s clock
+    const pts = [];
+    for (let i = 0; i < this.buf.n; i++) {
+      pts.push({ x: this.buf.x(i), y: this.buf.y(i), pressure: 1, t: i });
+    }
+    this.snapped = recognizeShape(pts);
+    if (this.snapped) this.liveDirty = true;
+  }
 
   /** Hit-test new eraser points; strokes touched are hidden until the gesture is committed. */
   private flushEraser(): void {
@@ -640,15 +1050,25 @@ export class CanvasController {
     ctx.beginPath();
     ctx.rect(0, 0, pw, ph);
     ctx.clip();
+    const lifted = this.mode === 'move' || this.mode === 'xform';
+    const hiddenObjs = new Set<string>(lifted ? this.selObjs : []);
+    const editingId = this.editing && !this.editing.isNew ? this.editing.obj.id : null;
+    // Objects sit under ink; the text box being edited is drawn by the editor overlay instead.
+    const objs = editingId
+      ? this.store.objects.filter((o) => o.id !== editingId)
+      : this.store.objects;
+    drawObjects(ctx, objs, hiddenObjs);
     const hidden = new Set(this.pendingErase);
-    if (this.mode === 'move') for (const id of this.selected) hidden.add(id);
+    if (this.mode === 'move') for (const id of this.selStrokes) hidden.add(id);
     drawStrokes(ctx, this.store.strokes, visiblePageRect(this.view, this.vp), hidden);
     ctx.restore();
   }
 
   private selectionBounds(): Rect | null {
-    if (!this.selected.size) return null;
-    return unionRects(this.store.strokes.filter((s) => this.selected.has(s.id)).map(strokeBounds));
+    const rects: Rect[] = [];
+    for (const s of this.store.strokes) if (this.selStrokes.has(s.id)) rects.push(strokeBounds(s));
+    for (const o of this.store.objects) if (this.selObjs.has(o.id)) rects.push(objectBounds(o));
+    return unionRects(rects);
   }
 
   private renderLive(): void {
@@ -659,6 +1079,10 @@ export class CanvasController {
     const px = 1 / this.view.scale; // one screen pixel in page units
 
     if (this.mode === 'draw' && this.liveStyle) {
+      if (this.snapped) {
+        this.drawSnapPreview(ctx);
+        return;
+      }
       // Convert only the points added since the last frame.
       for (let i = this.livePts.length; i < this.buf.n; i++) {
         this.livePts.push([this.buf.x(i), this.buf.y(i), this.buf.pressure(i)]);
@@ -668,6 +1092,10 @@ export class CanvasController {
     }
 
     ctx.lineWidth = 1.5 * px;
+    if (this.mode === 'shape' && this.shapeStart && this.hover) {
+      drawObject(ctx, makeShape(this.shapeStart, this.hover, this.o.getTool().shape, []));
+      return;
+    }
     if (this.mode === 'erase' && this.hover) {
       ctx.strokeStyle = '#666';
       ctx.beginPath();
@@ -684,20 +1112,52 @@ export class CanvasController {
       ctx.stroke();
       return;
     }
-    const selected = this.store.strokes.filter((s) => this.selected.has(s.id));
-    if (selected.length) {
-      const dx = this.mode === 'move' ? this.moveOffset.x : 0;
-      const dy = this.mode === 'move' ? this.moveOffset.y : 0;
-      ctx.save();
-      ctx.translate(dx, dy);
-      if (this.mode === 'move') for (const s of selected) drawStroke(ctx, s);
-      const b = unionRects(selected.map(strokeBounds));
+    if (this.mode === 'xform' && this.xformCur) {
+      drawObject(ctx, this.xformCur);
+      drawHandles(ctx, this.xformCur, this.view.scale);
+      return;
+    }
+    this.drawSelection(ctx, px);
+  }
+
+  private drawSnapPreview(ctx: CanvasRenderingContext2D) {
+    const s = this.snapped!;
+    const st = this.liveStyle!;
+    const obj = makeShape(
+      { x: s.box.x, y: s.box.y },
+      { x: s.box.x + s.box.w, y: s.box.y + s.box.h },
+      { kind: s.shape, stroke: st.color, width: st.width, fill: null },
+      [],
+    );
+    if (s.ends) obj.ends = s.ends;
+    drawObject(ctx, obj);
+  }
+
+  private drawSelection(ctx: CanvasRenderingContext2D, px: number) {
+    const strokes = this.store.strokes.filter((s) => this.selStrokes.has(s.id));
+    const objs = this.store.objects.filter((o) => this.selObjs.has(o.id));
+    if (!strokes.length && !objs.length) return;
+    const moving = this.mode === 'move';
+    const dx = moving ? this.moveOffset.x : 0;
+    const dy = moving ? this.moveOffset.y : 0;
+    ctx.save();
+    ctx.translate(dx, dy);
+    if (moving) {
+      for (const s of strokes) drawStroke(ctx, s);
+      for (const o of [...objs].sort((a, b) => a.z - b.z)) drawObject(ctx, o);
+    }
+    const single = this.singleSelectedObject();
+    if (single) {
+      drawHandles(ctx, single, this.view.scale);
+    } else {
+      const b = this.selectionBounds();
       if (b) {
+        ctx.lineWidth = 1.5 * px;
         ctx.strokeStyle = SELECT_COLOR;
         ctx.setLineDash([6 * px, 4 * px]);
         ctx.strokeRect(b.x, b.y, b.w, b.h);
       }
-      ctx.restore();
     }
+    ctx.restore();
   }
 }

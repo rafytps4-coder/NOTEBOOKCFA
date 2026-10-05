@@ -1,12 +1,16 @@
 import { newId } from '@/core/ids';
 import { translateStroke } from './geometry';
+import { moveObject } from './objects';
+import type { PageObject } from '@/core/models';
 import type { Stroke } from './types';
 
-/** Ordered strokes of one page. Strokes are immutable; commands swap whole objects. */
+/** Ink and objects of one page. Both are immutable values; commands swap whole items. */
 export class StrokeStore {
   strokes: Stroke[];
-  constructor(strokes: Stroke[] = []) {
+  objects: PageObject[];
+  constructor(strokes: Stroke[] = [], objects: PageObject[] = []) {
     this.strokes = strokes;
+    this.objects = objects;
   }
 }
 
@@ -59,6 +63,81 @@ export const moveStrokes = (ids: string[], dx: number, dy: number): Command => {
 };
 
 /** Copies with fresh ids, offset a little so they don't hide the originals. */
+/** Add strokes and/or objects in one undo step (paste, shape snap). */
+export const addItems = (strokes: Stroke[], objects: PageObject[], label = 'add'): Command => ({
+  label,
+  apply: (s) => {
+    s.strokes = [...s.strokes, ...strokes];
+    s.objects = [...s.objects, ...objects];
+  },
+  revert: (s) => {
+    const sid = new Set(strokes.map((x) => x.id));
+    const oid = new Set(objects.map((x) => x.id));
+    s.strokes = s.strokes.filter((x) => !sid.has(x.id));
+    s.objects = s.objects.filter((x) => !oid.has(x.id));
+  },
+});
+
+/** Delete strokes and/or objects in one undo step, restoring order on undo. */
+export const removeItems = (
+  strokeIds: string[],
+  objectIds: string[],
+  label = 'delete',
+): Command => {
+  let rs: { item: Stroke; index: number }[] = [];
+  let ro: { item: PageObject; index: number }[] = [];
+  return {
+    label,
+    apply: (s) => {
+      const si = new Set(strokeIds);
+      const oi = new Set(objectIds);
+      rs = [];
+      ro = [];
+      s.strokes.forEach((item, index) => si.has(item.id) && rs.push({ item, index }));
+      s.objects.forEach((item, index) => oi.has(item.id) && ro.push({ item, index }));
+      s.strokes = s.strokes.filter((x) => !si.has(x.id));
+      s.objects = s.objects.filter((x) => !oi.has(x.id));
+    },
+    revert: (s) => {
+      const a = [...s.strokes];
+      for (const r of rs) a.splice(Math.min(r.index, a.length), 0, r.item);
+      const b = [...s.objects];
+      for (const r of ro) b.splice(Math.min(r.index, b.length), 0, r.item);
+      s.strokes = a;
+      s.objects = b;
+    },
+  };
+};
+
+/** Move strokes and objects together. */
+export const moveItems = (
+  strokeIds: string[],
+  objectIds: string[],
+  dx: number,
+  dy: number,
+): Command => {
+  const shift = (s: StrokeStore, ddx: number, ddy: number) => {
+    const si = new Set(strokeIds);
+    const oi = new Set(objectIds);
+    s.strokes = s.strokes.map((x) => (si.has(x.id) ? translateStroke(x, ddx, ddy) : x));
+    s.objects = s.objects.map((x) => (oi.has(x.id) ? moveObject(x, ddx, ddy) : x));
+  };
+  return { label: 'move', apply: (s) => shift(s, dx, dy), revert: (s) => shift(s, -dx, -dy) };
+};
+
+/** Replace objects by id with new versions (resize, rotate, format, crop, z-order, edit text). */
+export const patchObjects = (
+  before: PageObject[],
+  after: PageObject[],
+  label = 'edit',
+): Command => {
+  const swap = (s: StrokeStore, to: PageObject[]) => {
+    const m = new Map(to.map((o) => [o.id, o]));
+    s.objects = s.objects.map((o) => m.get(o.id) ?? o);
+  };
+  return { label, apply: (s) => swap(s, after), revert: (s) => swap(s, before) };
+};
+
 export function cloneStrokes(strokes: Stroke[], offset = 24): Stroke[] {
   return strokes.map((s) => ({ ...translateStroke(s, offset, offset), id: newId() }));
 }

@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { EditorTool } from '@/engines/drawing';
 import { useEditorStore } from './editorStore';
 
@@ -7,6 +8,8 @@ const TOOLS: { id: EditorTool; label: string; icon: string }[] = [
   { id: 'highlighter', label: 'Highlighter', icon: '🖍️' },
   { id: 'eraser', label: 'Eraser', icon: '🧽' },
   { id: 'lasso', label: 'Lasso select', icon: '⭕' },
+  { id: 'text', label: 'Text', icon: '🔤' },
+  { id: 'shape', label: 'Shapes', icon: '⬜' },
 ];
 
 export interface ToolbarActions {
@@ -17,10 +20,12 @@ export interface ToolbarActions {
   copy: () => void;
   cut: () => void;
   paste: () => void;
+  insertImages: (files: File[]) => void;
 }
 
 export function Toolbar({ actions }: { actions: ToolbarActions }) {
   const s = useEditorStore();
+  const fileRef = useRef<HTMLInputElement>(null);
   return (
     <div className="editor-toolbar" role="toolbar" aria-label="Drawing tools">
       <div className="btn-row" role="group" aria-label="Tools">
@@ -37,6 +42,29 @@ export function Toolbar({ actions }: { actions: ToolbarActions }) {
             <span aria-hidden="true">{t.icon}</span>
           </button>
         ))}
+      </div>
+      <div className="btn-row" role="group" aria-label="Insert">
+        <button
+          type="button"
+          className="btn"
+          onClick={() => fileRef.current?.click()}
+          title="Insert an image from Files or Photos"
+        >
+          <span aria-hidden="true">🖼️</span> Image
+        </button>
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          hidden
+          aria-label="Choose images to insert"
+          onChange={(e) => {
+            const files = [...(e.target.files ?? [])];
+            e.target.value = '';
+            if (files.length) actions.insertImages(files);
+          }}
+        />
       </div>
       <div className="btn-row" role="group" aria-label="History">
         <button
@@ -58,26 +86,20 @@ export function Toolbar({ actions }: { actions: ToolbarActions }) {
           ↷
         </button>
       </div>
-      {s.tool === 'lasso' && (
-        <div className="btn-row" role="group" aria-label="Selection">
-          <button className="btn" disabled={!s.hasSelection} onClick={actions.copy}>
-            Copy
-          </button>
-          <button className="btn" disabled={!s.hasSelection} onClick={actions.cut}>
-            Cut
-          </button>
-          <button className="btn" onClick={actions.paste}>
-            Paste
-          </button>
-          <button
-            className="btn danger"
-            disabled={!s.hasSelection}
-            onClick={actions.deleteSelection}
-          >
-            Delete
-          </button>
-        </div>
-      )}
+      <div className="btn-row" role="group" aria-label="Selection">
+        <button className="btn" disabled={!s.hasSelection} onClick={actions.copy}>
+          Copy
+        </button>
+        <button className="btn" disabled={!s.hasSelection} onClick={actions.cut}>
+          Cut
+        </button>
+        <button className="btn" onClick={actions.paste}>
+          Paste
+        </button>
+        <button className="btn danger" disabled={!s.hasSelection} onClick={actions.deleteSelection}>
+          Delete
+        </button>
+      </div>
       <div className="btn-row grow-end" role="group" aria-label="View">
         <button
           className="btn"

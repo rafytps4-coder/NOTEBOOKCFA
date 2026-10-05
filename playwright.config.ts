@@ -6,7 +6,8 @@ const chromiumPath = process.env.PW_CHROMIUM_PATH;
 
 export default defineConfig({
   testDir: 'e2e',
-  fullyParallel: true,
+  fullyParallel: false,
+  workers: 1, // perf-sensitive tests: avoid CPU contention between workers
   reporter: 'list',
   use: { baseURL: 'http://localhost:4173' },
   webServer: {

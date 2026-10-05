@@ -12,8 +12,8 @@ export interface Vec {
   y: number;
 }
 
-/** Tools the canvas understands. Only pen/pencil/highlighter produce strokes. */
-export type EditorTool = 'pen' | 'pencil' | 'highlighter' | 'eraser' | 'lasso';
+/** Tools the canvas understands. Pen/pencil/highlighter make strokes; text/shape make objects; lasso is the select tool. */
+export type EditorTool = 'pen' | 'pencil' | 'highlighter' | 'eraser' | 'lasso' | 'text' | 'shape';
 
 export interface ToolOptions {
   color: string;

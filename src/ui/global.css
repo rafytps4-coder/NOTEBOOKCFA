@@ -541,7 +541,10 @@ select {
   font-size: 1.2rem;
 }
 .options {
-  min-height: 64px; /* keeps the canvas from jumping when the tool changes */
+  /* Fixed height: the canvas must never jump when the tool or selection changes. */
+  height: 140px;
+  overflow-y: auto;
+  flex: none;
   display: flex;
   flex-wrap: wrap;
   gap: 14px;
@@ -830,4 +833,41 @@ select {
     left: 0;
     box-shadow: 4px 0 18px rgba(0, 0, 0, 0.3);
   }
+}
+
+.text-editor {
+  position: absolute;
+  z-index: 5;
+  box-sizing: border-box;
+  resize: none;
+  overflow: hidden;
+  border: 1.5px dashed var(--focus);
+  background: rgba(255, 255, 255, 0.85);
+  outline: none;
+  transform-origin: center;
+}
+
+.swatch.none {
+  display: grid;
+  place-items: center;
+  background: var(--surface);
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+}
+.check input {
+  min-height: 0;
+  width: 20px;
+  height: 20px;
+}
+.crop-panel {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: flex-end;
 }
