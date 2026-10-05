@@ -1,0 +1,165 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/schemas/topics.schema.json",
+  "title": "Helper topic outline pack",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "kind",
+    "packId",
+    "helperId",
+    "title",
+    "curriculumVersion",
+    "contentVersion",
+    "license",
+    "disclaimer",
+    "topics"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "packId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "helperId": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$"
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "curriculumVersion": {
+      "type": "string",
+      "description": "Free-form label, e.g. '2027'. Lets several versions coexist."
+    },
+    "contentVersion": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "license": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Provenance statement. Must say the content is original or licensed."
+    },
+    "disclaimer": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Shown in the Helper UI."
+    },
+    "kind": {
+      "const": "topics"
+    },
+    "topics": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/topic"
+      }
+    }
+  },
+  "$defs": {
+    "topic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "summary",
+        "order",
+        "modules"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 240,
+          "description": "One original sentence."
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "defaultWeightPercent": {
+          "type": [
+            "number",
+            "null"
+          ],
+          "minimum": 0,
+          "maximum": 100,
+          "description": "null = unknown; planner falls back to equal weights. The user can edit this in-app."
+        },
+        "modules": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/module"
+          }
+        }
+      }
+    },
+    "module": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "concepts"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string",
+          "description": "Your own grouping label, not a copy of any official module title."
+        },
+        "concepts": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/concept"
+          }
+        }
+      }
+    },
+    "concept": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "id",
+        "name",
+        "summary"
+      ],
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[a-z0-9]+([.-][a-z0-9]+)*$"
+        },
+        "name": {
+          "type": "string"
+        },
+        "summary": {
+          "type": "string",
+          "maxLength": 240
+        },
+        "tags": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  }
+}

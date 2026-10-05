@@ -9,6 +9,17 @@ import type {
   SearchTextRow,
   SettingRow,
 } from './models';
+import type {
+  Flashcard,
+  Mistake,
+  Question,
+  QuizResult,
+  ReviewLog,
+  StudyAsset,
+  StudySession,
+  StudySet,
+  TagRow,
+} from './studyModels';
 
 export class NotebookDB extends Dexie {
   folders!: Table<Folder, string>;
@@ -19,6 +30,15 @@ export class NotebookDB extends Dexie {
   pageBackup!: Table<PageBackupRow, string>;
   assets!: Table<Asset, string>;
   settings!: Table<SettingRow, string>;
+  studySets!: Table<StudySet, string>;
+  flashcards!: Table<Flashcard, string>;
+  reviewLogs!: Table<ReviewLog, string>;
+  studySessions!: Table<StudySession, string>;
+  questions!: Table<Question, string>;
+  quizResults!: Table<QuizResult, string>;
+  mistakes!: Table<Mistake, string>;
+  tags!: Table<TagRow, string>;
+  studyAssets!: Table<StudyAsset, string>;
 
   constructor(name = 'notebook') {
     super(name);
@@ -52,6 +72,18 @@ export class NotebookDB extends Dexie {
     this.version(3).stores({ searchText: 'key, documentId, pageId' });
     // v4: purely additive: last-good copies of page content (see PageBackupRow).
     this.version(4).stores({ pageBackup: 'key, pageId' });
+    // v5: purely additive: the generic study system (flashcards, reviews, questions, mistakes).
+    this.version(5).stores({
+      studySets: 'id, updatedAt',
+      flashcards: 'id, setId, formulaId, [setId+createdAt]',
+      reviewLogs: 'id, cardId, setId, at',
+      studySessions: 'id, setId, startedAt',
+      questions: 'id, formulaId, updatedAt',
+      quizResults: 'id, questionId, at',
+      mistakes: 'id, questionId, formulaId, reviewed, createdAt',
+      tags: 'name',
+      studyAssets: 'id',
+    });
   }
 }
 

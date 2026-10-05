@@ -12,3 +12,6 @@ export * from './assets';
 export * from './pdfDocs';
 export * from './searchText';
 export * from './pageIntegrity';
+export * from './studyModels';
+export * from './study';
+export * from './questionsIO';

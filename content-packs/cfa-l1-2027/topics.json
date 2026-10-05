@@ -1,0 +1,563 @@
+{
+  "schemaVersion": "1.0.0",
+  "kind": "topics",
+  "packId": "cfa-l1-2027",
+  "helperId": "cfa-helper",
+  "title": "Level I topic outline (original descriptions)",
+  "curriculumVersion": "2027",
+  "contentVersion": "0.1.0",
+  "license": "Original content by the app authors. Contains no third-party curriculum text, learning outcome statements, or questions.",
+  "disclaimer": "Independent study tool. Not affiliated with or endorsed by CFA Institute. CFA® and Chartered Financial Analyst® are trademarks owned by CFA Institute.",
+  "topics": [
+    {
+      "id": "ethics",
+      "name": "Ethics & Professional Standards",
+      "summary": "How investment professionals should behave: honesty, fairness, client loyalty, and clear disclosure.",
+      "order": 1,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "ethics.principles",
+          "name": "Principles and conduct",
+          "concepts": [
+            {
+              "id": "ethics.duty-to-clients",
+              "name": "Duties to clients",
+              "summary": "Putting client interests ahead of your own and your employer's."
+            },
+            {
+              "id": "ethics.integrity-of-markets",
+              "name": "Market integrity",
+              "summary": "Avoiding misuse of non-public information and price manipulation."
+            },
+            {
+              "id": "ethics.conflicts",
+              "name": "Conflicts of interest",
+              "summary": "Spotting, disclosing, and managing situations that could bias judgement."
+            },
+            {
+              "id": "ethics.misrepresentation",
+              "name": "Misrepresentation",
+              "summary": "Keeping claims about skills, results, and services accurate and balanced."
+            },
+            {
+              "id": "ethics.performance-presentation",
+              "name": "Fair performance reporting",
+              "summary": "Presenting investment results in a complete and comparable way."
+            },
+            {
+              "id": "ethics.supervisory",
+              "name": "Responsibility of supervisors",
+              "summary": "Setting up controls so the people you oversee act properly."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "quant",
+      "name": "Quantitative Methods",
+      "summary": "The maths toolkit: time value of money, statistics, probability, and basic modelling.",
+      "order": 2,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "quant.tvm",
+          "name": "Time value of money",
+          "concepts": [
+            {
+              "id": "quant.fv-pv",
+              "name": "Future and present value",
+              "summary": "Moving a single cash amount forward or backward in time."
+            },
+            {
+              "id": "quant.annuities",
+              "name": "Annuities and perpetuities",
+              "summary": "Valuing level streams of cash flows."
+            },
+            {
+              "id": "quant.rates",
+              "name": "Interest rate conventions",
+              "summary": "Nominal, effective, and continuously compounded rates."
+            }
+          ]
+        },
+        {
+          "id": "quant.stats",
+          "name": "Statistics and probability",
+          "concepts": [
+            {
+              "id": "quant.returns",
+              "name": "Return measures",
+              "summary": "Holding period, arithmetic, geometric, and money-weighted returns."
+            },
+            {
+              "id": "quant.dispersion",
+              "name": "Dispersion and shape",
+              "summary": "Variance, standard deviation, skewness, and kurtosis."
+            },
+            {
+              "id": "quant.probability",
+              "name": "Probability rules",
+              "summary": "Conditional, joint, and total probability, plus Bayes' rule."
+            },
+            {
+              "id": "quant.distributions",
+              "name": "Common distributions",
+              "summary": "Normal, lognormal, and others used in finance."
+            },
+            {
+              "id": "quant.sampling-testing",
+              "name": "Sampling and hypothesis tests",
+              "summary": "Estimating from samples and testing claims about a population."
+            }
+          ]
+        },
+        {
+          "id": "quant.models",
+          "name": "Regression and modelling",
+          "concepts": [
+            {
+              "id": "quant.regression",
+              "name": "Linear regression basics",
+              "summary": "Fitting relationships between variables and judging their fit."
+            },
+            {
+              "id": "quant.time-series",
+              "name": "Time-series ideas",
+              "summary": "Trends, seasonality, and why order of observations matters."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "econ",
+      "name": "Economics",
+      "summary": "How markets, firms, and whole economies behave, including money, trade, and currencies.",
+      "order": 3,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "econ.micro",
+          "name": "Microeconomics",
+          "concepts": [
+            {
+              "id": "econ.supply-demand",
+              "name": "Supply and demand",
+              "summary": "How prices and quantities settle in a market."
+            },
+            {
+              "id": "econ.elasticity",
+              "name": "Elasticity",
+              "summary": "How sensitive demand or supply is to price and income."
+            },
+            {
+              "id": "econ.market-structures",
+              "name": "Market structures",
+              "summary": "Competition, monopoly, and in-between cases."
+            }
+          ]
+        },
+        {
+          "id": "econ.macro",
+          "name": "Macroeconomics",
+          "concepts": [
+            {
+              "id": "econ.growth-cycles",
+              "name": "Growth and business cycles",
+              "summary": "What drives output and why economies expand and contract."
+            },
+            {
+              "id": "econ.inflation",
+              "name": "Inflation and unemployment",
+              "summary": "Measuring and interpreting price and labour-market trends."
+            },
+            {
+              "id": "econ.monetary-fiscal",
+              "name": "Monetary and fiscal policy",
+              "summary": "How central banks and governments steer the economy."
+            }
+          ]
+        },
+        {
+          "id": "econ.international",
+          "name": "International economics",
+          "concepts": [
+            {
+              "id": "econ.trade",
+              "name": "Trade and capital flows",
+              "summary": "Why countries trade and how balances of payments work."
+            },
+            {
+              "id": "econ.fx",
+              "name": "Exchange rates",
+              "summary": "What moves currencies and how to read quotes."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fsa",
+      "name": "Financial Statement Analysis",
+      "summary": "Reading income statements, balance sheets, and cash flows to judge a company's health.",
+      "order": 4,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "fsa.statements",
+          "name": "The three statements",
+          "concepts": [
+            {
+              "id": "fsa.income-statement",
+              "name": "Income statement",
+              "summary": "Revenue, expenses, and how profit is built up."
+            },
+            {
+              "id": "fsa.balance-sheet",
+              "name": "Balance sheet",
+              "summary": "Assets, liabilities, and equity at a point in time."
+            },
+            {
+              "id": "fsa.cash-flow",
+              "name": "Cash flow statement",
+              "summary": "Operating, investing, and financing cash movements."
+            }
+          ]
+        },
+        {
+          "id": "fsa.analysis",
+          "name": "Analysis techniques",
+          "concepts": [
+            {
+              "id": "fsa.ratios",
+              "name": "Ratio analysis",
+              "summary": "Profitability, liquidity, solvency, and efficiency measures."
+            },
+            {
+              "id": "fsa.dupont",
+              "name": "DuPont decomposition",
+              "summary": "Breaking return on equity into its drivers."
+            },
+            {
+              "id": "fsa.inventory-depreciation",
+              "name": "Inventory and long-lived assets",
+              "summary": "How accounting choices change reported numbers."
+            },
+            {
+              "id": "fsa.quality-of-earnings",
+              "name": "Earnings quality",
+              "summary": "Telling durable profit from accounting noise."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "corp",
+      "name": "Corporate Finance",
+      "summary": "How companies fund themselves, choose projects, and return value to owners.",
+      "order": 5,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "corp.investment",
+          "name": "Investment decisions",
+          "concepts": [
+            {
+              "id": "corp.capital-budgeting",
+              "name": "Capital budgeting",
+              "summary": "Using NPV, IRR, and payback to evaluate projects."
+            },
+            {
+              "id": "corp.cash-flow-estimation",
+              "name": "Project cash flows",
+              "summary": "Choosing which incremental cash flows to count."
+            }
+          ]
+        },
+        {
+          "id": "corp.financing",
+          "name": "Financing and governance",
+          "concepts": [
+            {
+              "id": "corp.cost-of-capital",
+              "name": "Cost of capital",
+              "summary": "Blending the cost of debt and equity into one hurdle rate."
+            },
+            {
+              "id": "corp.capital-structure",
+              "name": "Capital structure",
+              "summary": "The trade-offs of using debt versus equity."
+            },
+            {
+              "id": "corp.payout",
+              "name": "Dividends and buybacks",
+              "summary": "Ways of returning cash to shareholders."
+            },
+            {
+              "id": "corp.governance",
+              "name": "Corporate governance",
+              "summary": "How boards and incentives shape company behaviour."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "equity",
+      "name": "Equity Investments",
+      "summary": "How stock markets work and how to estimate what a share is worth.",
+      "order": 6,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "equity.markets",
+          "name": "Markets and indexes",
+          "concepts": [
+            {
+              "id": "equity.market-mechanics",
+              "name": "Market mechanics",
+              "summary": "Order types, trading venues, and market efficiency."
+            },
+            {
+              "id": "equity.indexes",
+              "name": "Equity indexes",
+              "summary": "How indexes are built and what they represent."
+            }
+          ]
+        },
+        {
+          "id": "equity.valuation",
+          "name": "Valuation",
+          "concepts": [
+            {
+              "id": "equity.ddm",
+              "name": "Dividend discount models",
+              "summary": "Valuing shares from expected dividends and growth."
+            },
+            {
+              "id": "equity.fcf",
+              "name": "Free cash flow valuation",
+              "summary": "Valuing a firm or its equity from cash generated."
+            },
+            {
+              "id": "equity.multiples",
+              "name": "Valuation multiples",
+              "summary": "Using P/E, EV/EBITDA, and similar comparisons."
+            },
+            {
+              "id": "equity.cost-of-equity",
+              "name": "Required return on equity",
+              "summary": "Estimating the return investors should demand."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "fi",
+      "name": "Fixed Income",
+      "summary": "Bonds and other debt: how they are priced, what drives their yields, and how they carry risk.",
+      "order": 7,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "fi.basics",
+          "name": "Bond basics",
+          "concepts": [
+            {
+              "id": "fi.features",
+              "name": "Bond features",
+              "summary": "Coupons, maturity, covenants, and embedded options."
+            },
+            {
+              "id": "fi.pricing",
+              "name": "Bond pricing",
+              "summary": "Discounting coupons and principal at the market yield."
+            },
+            {
+              "id": "fi.yield-measures",
+              "name": "Yield measures",
+              "summary": "Current yield, yield to maturity, and related measures."
+            }
+          ]
+        },
+        {
+          "id": "fi.risk",
+          "name": "Rates and risk",
+          "concepts": [
+            {
+              "id": "fi.price-yield",
+              "name": "Price-yield relationship",
+              "summary": "Why prices and yields move in opposite directions."
+            },
+            {
+              "id": "fi.duration-convexity",
+              "name": "Duration and convexity",
+              "summary": "Measuring interest-rate sensitivity."
+            },
+            {
+              "id": "fi.yield-curve",
+              "name": "Yield curve and spreads",
+              "summary": "Term structure shapes and credit spreads."
+            },
+            {
+              "id": "fi.credit",
+              "name": "Credit risk",
+              "summary": "Default likelihood, recovery, and ratings."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "deriv",
+      "name": "Derivatives",
+      "summary": "Contracts whose value depends on something else, used to take or reduce risk.",
+      "order": 8,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "deriv.forwards-futures",
+          "name": "Forwards, futures and swaps",
+          "concepts": [
+            {
+              "id": "deriv.forward-pricing",
+              "name": "Forward pricing",
+              "summary": "Pricing by no-arbitrage reasoning."
+            },
+            {
+              "id": "deriv.futures-mechanics",
+              "name": "Futures mechanics",
+              "summary": "Margin, marking to market, and convergence."
+            },
+            {
+              "id": "deriv.swaps",
+              "name": "Swaps",
+              "summary": "Exchanging cash flow streams, such as fixed for floating."
+            }
+          ]
+        },
+        {
+          "id": "deriv.options",
+          "name": "Options",
+          "concepts": [
+            {
+              "id": "deriv.option-payoffs",
+              "name": "Option payoffs",
+              "summary": "Profit and loss profiles for calls and puts."
+            },
+            {
+              "id": "deriv.put-call-parity",
+              "name": "Put-call parity",
+              "summary": "How call, put, stock, and bond values must relate."
+            },
+            {
+              "id": "deriv.binomial",
+              "name": "Binomial valuation",
+              "summary": "Pricing options step by step on a tree."
+            },
+            {
+              "id": "deriv.greeks",
+              "name": "Option sensitivities",
+              "summary": "How option value responds to inputs."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "alt",
+      "name": "Alternative Investments",
+      "summary": "Assets beyond ordinary stocks and bonds, such as real estate, private capital, and commodities.",
+      "order": 9,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "alt.types",
+          "name": "Types and features",
+          "concepts": [
+            {
+              "id": "alt.real-estate",
+              "name": "Real estate",
+              "summary": "Income, appreciation, and valuation approaches."
+            },
+            {
+              "id": "alt.private-capital",
+              "name": "Private equity and debt",
+              "summary": "Illiquid investments with distinct fee and return patterns."
+            },
+            {
+              "id": "alt.hedge-funds",
+              "name": "Hedge funds",
+              "summary": "Strategies, fees, and risk characteristics."
+            },
+            {
+              "id": "alt.commodities-digital",
+              "name": "Commodities and digital assets",
+              "summary": "Return sources and risks of non-traditional assets."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "pm",
+      "name": "Portfolio Management",
+      "summary": "Combining assets to meet goals: risk, return, diversification, and policy.",
+      "order": 10,
+      "defaultWeightPercent": null,
+      "modules": [
+        {
+          "id": "pm.theory",
+          "name": "Risk and return",
+          "concepts": [
+            {
+              "id": "pm.portfolio-return-risk",
+              "name": "Portfolio return and risk",
+              "summary": "How asset weights and correlations shape the whole."
+            },
+            {
+              "id": "pm.diversification",
+              "name": "Diversification",
+              "summary": "Why combining imperfectly correlated assets lowers risk."
+            },
+            {
+              "id": "pm.capm-sml",
+              "name": "CAPM and the SML",
+              "summary": "Linking required return to systematic risk."
+            },
+            {
+              "id": "pm.performance-measures",
+              "name": "Risk-adjusted performance",
+              "summary": "Sharpe ratio and related measures."
+            }
+          ]
+        },
+        {
+          "id": "pm.practice",
+          "name": "Practice of portfolio management",
+          "concepts": [
+            {
+              "id": "pm.ips",
+              "name": "Investment policy statement",
+              "summary": "Capturing a client's goals, constraints, and risk tolerance."
+            },
+            {
+              "id": "pm.behavioral",
+              "name": "Behavioural finance",
+              "summary": "Common biases that distort investment decisions."
+            },
+            {
+              "id": "pm.fintech",
+              "name": "Technology in investing",
+              "summary": "Automation and data-driven approaches."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

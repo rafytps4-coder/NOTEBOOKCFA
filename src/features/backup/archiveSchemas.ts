@@ -96,6 +96,45 @@ const rowSchemas: Record<string, object> = {
     },
   },
   settings: { type: 'object', required: ['key'], properties: { key: str } },
+  studySets: { type: 'object', required: ['id', 'name'], properties: { id: str, name: str } },
+  flashcards: {
+    type: 'object',
+    required: ['id', 'setId', 'front', 'back', 'sched'],
+    properties: {
+      id: str,
+      setId: str,
+      front: { type: 'object' },
+      back: { type: 'object' },
+      sched: { type: 'object' },
+    },
+  },
+  reviewLogs: {
+    type: 'object',
+    required: ['id', 'cardId', 'rating'],
+    properties: { id: str, cardId: str, rating: { enum: ['again', 'hard', 'good', 'easy'] } },
+  },
+  studySessions: { type: 'object', required: ['id', 'kind'], properties: { id: str, kind: str } },
+  questions: {
+    type: 'object',
+    required: ['id', 'kind', 'prompt'],
+    properties: { id: str, kind: str, prompt: str },
+  },
+  quizResults: {
+    type: 'object',
+    required: ['id', 'questionId'],
+    properties: { id: str, questionId: str, correct: bool },
+  },
+  mistakes: {
+    type: 'object',
+    required: ['id', 'questionText'],
+    properties: { id: str, questionText: str },
+  },
+  tags: { type: 'object', required: ['name'], properties: { name: str } },
+  studyAssets: {
+    type: 'object',
+    required: ['id', 'file'],
+    properties: { id: str, file: str, mime: str },
+  },
 };
 
 export const validateManifest = ajv.compile(manifestSchema);

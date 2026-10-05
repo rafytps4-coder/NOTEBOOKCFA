@@ -12,9 +12,17 @@ import type {
 } from '@/core/models';
 import { ARCHIVE_FORMAT, ARCHIVE_VERSION, firstRowError, validateManifest } from './archiveSchemas';
 import { ZipReader, ZipWriter, ZipError } from './zip';
+import {
+  EXTRA_TABLE_NAMES,
+  applyExtra,
+  extraTablesForTransaction,
+  prepareExtra,
+  readExtraTables,
+  writeExtraTables,
+} from './extraTables';
 
 /** The schema version of the database these archives are made from (see core/db.ts). */
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 const APP = { name: 'Notebook', version: '0.1.0' };
 
 /**
@@ -137,6 +145,8 @@ async function writeArchive(sel: Selection, opts: ExportOptions): Promise<ZipWri
     if (n % 20 === 0) await new Promise((r) => setTimeout(r));
   }
   await addTable('assets', assetMeta);
+  // Study data and other library-wide tables only travel with a full-library backup.
+  if (sel.scope === 'library') bytes += await writeExtraTables(zip, addTable);
 
   const manifest = {
     format: ARCHIVE_FORMAT,
@@ -221,7 +231,7 @@ async function openArchive(file: Blob): Promise<{ zip: ZipReader; manifest: Mani
       'This backup uses a newer data format than this version of Notebook understands.',
     );
   }
-  const known = new Set<string>([...BACKUP_TABLES, 'assets']);
+  const known = new Set<string>([...BACKUP_TABLES, 'assets', ...EXTRA_TABLE_NAMES]);
   for (const t of Object.keys(m.tables)) {
     if (!known.has(t))
       throw new ArchiveError(`This backup contains data (“${t}”) this version can’t restore.`);
@@ -322,6 +332,20 @@ export async function importArchive(
   const content = await readTable<PageContent>(zip, manifest, 'pageContent');
   const assetRows = await readTable<AssetRow>(zip, manifest, 'assets');
   upgradeRows(manifest.dbVersion, pages, content);
+  let extra;
+  try {
+    extra = await readExtraTables(
+      (t) => readTable(zip, manifest, t),
+      zip,
+      (t) => t in manifest.tables,
+    );
+  } catch (e) {
+    if (e instanceof ArchiveError) throw e;
+    throw new ArchiveError(
+      `The backup is damaged${e instanceof Error ? `: ${e.message}` : ''}.`,
+      e,
+    );
+  }
 
   let n = 0;
   for (const a of assetRows) {
@@ -396,6 +420,14 @@ export async function importArchive(
     return { ...a, id, documentId: mapOr(docMap, a.documentId), blob: blobs.get(a.id)! };
   });
 
+  const extraPrepared = await prepareExtra(
+    extra,
+    mode,
+    { doc: docMap, page: pageMap },
+    new Set(EXTRA_TABLE_NAMES.filter((t) => t in manifest.tables)),
+  );
+  remapped += extraPrepared.remapped;
+
   // 3. One transaction: either all of it lands or none of it does.
   progress('Restoring', 0, 1);
   const tables = [
@@ -406,11 +438,14 @@ export async function importArchive(
     db.assets,
     db.settings,
     db.searchText,
+    ...extraTablesForTransaction(),
   ];
   try {
     await db.transaction('rw', tables, async () => {
       if (mode === 'replace') {
-        await Promise.all(tables.map((t) => t.clear()));
+        // Tables the backup doesn't contain (data newer than it) are left alone.
+        const keep = new Set(EXTRA_TABLE_NAMES.filter((t) => !(t in manifest.tables)));
+        await Promise.all(tables.filter((t) => !keep.has(t.name)).map((t) => t.clear()));
       }
       await db.folders.bulkPut(newFolders);
       await db.documents.bulkPut(newDocs);
@@ -420,6 +455,7 @@ export async function importArchive(
       // Merge keeps the settings you already have and only fills in missing ones.
       const have = new Set(mode === 'merge' ? await db.settings.toCollection().primaryKeys() : []);
       await db.settings.bulkPut(settings.filter((s) => !have.has(s.key)));
+      await applyExtra(extraPrepared, mode);
     });
   } catch (e) {
     throw new ArchiveError(
