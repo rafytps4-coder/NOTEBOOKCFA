@@ -25,16 +25,43 @@ export interface NotebookDocument {
   deletedAt: number | null;
 }
 
-/** Stub: page content (strokes, template, objects) arrives in prompts 02-04. */
+export type StrokeTool = 'pen' | 'pencil' | 'highlighter';
+
+export interface StrokePoint {
+  x: number;
+  y: number;
+  pressure: number;
+  t: number; // ms since the stroke started
+}
+
+/** Ink stroke in page space (CSS px at zoom 1). Immutable once committed. */
+export interface Stroke {
+  id: string;
+  tool: StrokeTool;
+  color: string;
+  width: number;
+  opacity: number;
+  /** True when pressure is not real (mouse/finger) and should be simulated from speed. */
+  sim?: boolean;
+  points: StrokePoint[];
+}
+
+/** A4 at 96 dpi. Page sizes and templates are added in prompt 03. */
+export const DEFAULT_PAGE_WIDTH = 794;
+export const DEFAULT_PAGE_HEIGHT = 1123;
+
 export interface Page {
   id: string;
   documentId: string;
   order: number;
+  width: number;
+  height: number;
+  strokes: Stroke[];
   createdAt: number;
   updatedAt: number;
 }
 
-export type AssetKind = 'pdf' | 'image';
+export type AssetKind = 'pdf' | 'image' | 'thumbnail';
 
 /** Large binary data. Kept in its own table so listing metadata never loads blobs. */
 export interface Asset {

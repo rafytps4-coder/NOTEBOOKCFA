@@ -32,7 +32,16 @@ import {
 const byName: SortOptions = { key: 'name', dir: 'asc' };
 
 async function addPageAndAsset(documentId: string, tag: string) {
-  await db.pages.add({ id: `p-${tag}`, documentId, order: 0, createdAt: 1, updatedAt: 1 });
+  await db.pages.add({
+    id: `p-${tag}`,
+    documentId,
+    order: 0,
+    width: 794,
+    height: 1123,
+    strokes: [],
+    createdAt: 1,
+    updatedAt: 1,
+  });
   await db.assets.add({
     id: `a-${tag}`,
     documentId,

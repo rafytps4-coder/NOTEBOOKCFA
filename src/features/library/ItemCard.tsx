@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { DocThumb } from './DocThumb';
 import { itemFavorite, itemName, itemUpdated, type LibItem } from './items';
 
 const LONG_PRESS_MS = 500;
@@ -62,9 +63,13 @@ export function ItemCard(props: {
           onOpen();
         }}
       >
-        <span className="thumb" aria-hidden="true">
-          {glyph(item)}
-        </span>
+        {item.type === 'document' ? (
+          <DocThumb doc={item.doc} glyph={glyph(item)} />
+        ) : (
+          <span className="thumb" aria-hidden="true">
+            {glyph(item)}
+          </span>
+        )}
         <span className="item-text">
           <span className="item-title">
             {itemName(item)}

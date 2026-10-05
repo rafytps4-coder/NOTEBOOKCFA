@@ -1,4 +1,4 @@
-import { NavLink, Navigate, Route, Routes } from 'react-router-dom';
+import { NavLink, Navigate, Route, Routes, useMatch } from 'react-router-dom';
 import { Planned } from './ui/Planned';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { PersistenceNotice } from './features/settings/PersistenceNotice';
@@ -15,8 +15,9 @@ const NAV = [
 ] as const;
 
 export function App() {
+  const inEditor = useMatch('/doc/:id') !== null;
   return (
-    <div className="shell">
+    <div className={inEditor ? 'shell shell-editor' : 'shell'}>
       <nav className="nav" aria-label="Main">
         <div className="nav-title">Notebook</div>
         {NAV.map((n) => (
@@ -29,7 +30,7 @@ export function App() {
         ))}
       </nav>
       <main className="main">
-        <PersistenceNotice />
+        {!inEditor && <PersistenceNotice />}
         <Routes>
           <Route path="/" element={<Navigate to="/library" replace />} />
           <Route path="/library" element={<LibraryPage mode="folder" />} />

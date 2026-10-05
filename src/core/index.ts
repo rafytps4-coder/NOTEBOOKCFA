@@ -6,3 +6,5 @@ export * from './documents';
 export * from './trash';
 export * from './settings';
 export { requestPersistence, useStorageStore } from './storage';
+export * from './pages';
+export * from './thumbnails';

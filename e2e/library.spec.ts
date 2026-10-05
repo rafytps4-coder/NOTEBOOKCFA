@@ -76,6 +76,7 @@ test('library: nested folders, notebooks, rename/move/duplicate/favorite/trash/r
 
   // Opened notebook shows in Recent
   await item(page, 'Algebra I').click();
+  await page.getByRole('link', { name: '← Library' }).click();
   await page
     .getByRole('navigation', { name: 'Main' })
     .getByRole('link', { name: 'Recent' })
