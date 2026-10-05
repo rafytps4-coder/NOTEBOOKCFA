@@ -39,6 +39,8 @@ Schema is versioned with Dexie `version().stores()`; migrations must preserve da
 
 ## 3. Storage plan
 
+Built in prompt 01: `src/core/` holds `models`, `db` (Dexie v1), repositories (`folders`, `documents`, `trash`, `settings`), `sort`, and `storage` (persistence request). Items at the top level use `parentId`/`folderId = 'root'` (`ROOT_ID`) so the field stays indexable. Assets carry an owner `documentId`; permanent delete removes a document's pages and assets in one transaction. Deleting a folder soft-deletes its subtree with one shared timestamp; restoring it restores only that batch. UI reads data through `liveQuery` (`ui/useLive.ts`) so views update after any write; view/sort choices are stored in the `settings` table.
+
 - Metadata (small rows) and blobs (PDF/images) are in **separate tables** so listing never loads blobs.
 - `navigator.storage.persist()` requested at startup; a dismissible notice is shown if not granted.
 - Theme preference is the only thing in `localStorage` (a UI preference, not user data).
