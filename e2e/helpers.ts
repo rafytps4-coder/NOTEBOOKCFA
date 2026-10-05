@@ -6,11 +6,16 @@ export async function createNotebook(page: Page, name = 'Draw test') {
   await page.getByLabel('Notebook name').fill(name);
   await page.getByRole('button', { name: 'Create' }).click();
   await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-  await expect(page.locator('.canvas-host')).toBeVisible();
+  await expect(page.locator('.canvas-host').first()).toBeVisible();
+}
+
+export async function openPages(page: Page) {
+  const btn = page.getByRole('button', { name: 'Pages', exact: true });
+  if ((await btn.getAttribute('aria-pressed')) !== 'true') await btn.click();
 }
 
 export async function hostBox(page: Page) {
-  const box = await page.locator('.canvas-host').boundingBox();
+  const box = await page.locator('.canvas-host').first().boundingBox();
   if (!box) throw new Error('no canvas host');
   return box;
 }
@@ -47,7 +52,7 @@ export async function storedStrokes(page: Page): Promise<number> {
         open.onerror = () => reject(open.error);
         open.onsuccess = () => {
           const db = open.result;
-          const req = db.transaction('pages').objectStore('pages').getAll();
+          const req = db.transaction('pageContent').objectStore('pageContent').getAll();
           req.onsuccess = () => {
             db.close();
             resolve(
@@ -67,4 +72,80 @@ export async function drawLine(page: Page, x0: number, y0: number, x1: number, y
   await page.mouse.move(b.x + (x0 + x1) / 2, b.y + (y0 + y1) / 2, { steps: 6 });
   await page.mouse.move(b.x + x1, b.y + y1, { steps: 6 });
   await page.mouse.up();
+}
+
+/** Insert a notebook with `n` empty pages straight into IndexedDB (schema v2). Returns the doc id. */
+export async function seedNotebook(page: Page, n: number, title = 'Seeded') {
+  await page.goto('/library'); // makes the app create the database
+  await page.waitForSelector('h1');
+  return page.evaluate(
+    ({ n, title }) =>
+      new Promise<string>((resolve, reject) => {
+        const open = indexedDB.open('notebook');
+        open.onerror = () => reject(open.error);
+        open.onsuccess = () => {
+          const db = open.result;
+          const tx = db.transaction(['documents', 'pages', 'pageContent'], 'readwrite');
+          const docId = crypto.randomUUID();
+          const t = Date.now();
+          tx.objectStore('documents').add({
+            id: docId,
+            kind: 'notebook',
+            title,
+            folderId: 'root',
+            favorite: false,
+            createdAt: t,
+            updatedAt: t,
+            lastOpenedAt: null,
+            deletedAt: null,
+          });
+          for (let i = 0; i < n; i++) {
+            const id = crypto.randomUUID();
+            tx.objectStore('pages').add({
+              id,
+              documentId: docId,
+              order: i,
+              width: 794,
+              height: 1123,
+              sizeName: 'A4',
+              template: { kind: i % 3 === 0 ? 'ruled' : 'blank', spacing: 28, color: '#c5cfdc' },
+              background: '#ffffff',
+              bookmarked: false,
+              deletedAt: null,
+              createdAt: t,
+              updatedAt: t,
+            });
+            tx.objectStore('pageContent').add({ pageId: id, strokes: [] });
+          }
+          tx.oncomplete = () => {
+            db.close();
+            resolve(docId);
+          };
+          tx.onerror = () => reject(tx.error);
+        };
+      }),
+    { n, title },
+  );
+}
+
+export async function pageCount(page: Page): Promise<number> {
+  return page.evaluate(
+    () =>
+      new Promise<number>((resolve, reject) => {
+        const open = indexedDB.open('notebook');
+        open.onsuccess = () => {
+          const db = open.result;
+          const req = db.transaction('pages').objectStore('pages').getAll();
+          req.onsuccess = () => {
+            db.close();
+            resolve(
+              (req.result as { deletedAt: number | null }[]).filter((p) => p.deletedAt === null)
+                .length,
+            );
+          };
+          req.onerror = () => reject(req.error);
+        };
+        open.onerror = () => reject(open.error);
+      }),
+  );
 }

@@ -1,14 +1,25 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { ensureFirstPage, getDocument, markOpened, type NotebookDocument, type Page } from '@/core';
+import {
+  ensureFirstPage,
+  getDocument,
+  listPages,
+  markOpened,
+  purgeDeletedPages,
+  createPage,
+  type NotebookDocument,
+  type Page,
+  type PageStyle,
+} from '@/core';
 import { Planned } from '@/ui/Planned';
-import { EditorView } from './EditorView';
+import { DocumentEditor } from './DocumentEditor';
+import { loadDefaultStyle } from './pageDefaults';
 
 type Loaded =
   | { s: 'loading' }
   | { s: 'missing' }
   | { s: 'unsupported'; doc: NotebookDocument }
-  | { s: 'ready'; doc: NotebookDocument; page: Page };
+  | { s: 'ready'; doc: NotebookDocument; pages: Page[]; style: PageStyle };
 
 export function EditorPage() {
   const { id = '' } = useParams();
@@ -22,10 +33,14 @@ export function EditorPage() {
       if (cancelled) return;
       if (!doc || doc.deletedAt !== null) return setState({ s: 'missing' });
       if (doc.kind === 'pdf') return setState({ s: 'unsupported', doc });
-      const page = await ensureFirstPage(id);
+      await purgeDeletedPages(id); // pages deleted in an earlier session are gone for good
+      const style = await loadDefaultStyle();
+      if ((await listPages(id)).length === 0) await createPage(id, 0, style);
+      else await ensureFirstPage(id);
+      const pages = await listPages(id);
       if (cancelled) return;
       void markOpened(id);
-      setState({ s: 'ready', doc, page });
+      setState({ s: 'ready', doc, pages, style });
     })().catch((e) => {
       console.error(e);
       if (!cancelled) setState({ s: 'missing' });
@@ -36,7 +51,14 @@ export function EditorPage() {
   }, [id]);
 
   if (state.s === 'ready')
-    return <EditorView key={state.page.id} doc={state.doc} page={state.page} />;
+    return (
+      <DocumentEditor
+        key={state.doc.id}
+        doc={state.doc}
+        initialPages={state.pages}
+        defaultStyle={state.style}
+      />
+    );
   if (state.s === 'loading') return <p role="status">Opening…</p>;
   return (
     <>

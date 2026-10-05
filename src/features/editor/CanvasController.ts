@@ -29,6 +29,8 @@ import {
   type View,
 } from '@/engines/drawing';
 import { newId } from '@/core/ids';
+import type { PageTemplate } from '@/core/models';
+import { drawPaper } from '@/engines/drawing';
 import { NavGesture } from './NavGesture';
 import { PointBuffer } from './PointBuffer';
 
@@ -53,11 +55,35 @@ export interface PerfStats {
   pointsPerSec: number;
 }
 
+export interface PageLook {
+  width: number;
+  height: number;
+  template: PageTemplate;
+  background: string;
+}
+
+/** Navigation requested by touch/wheel in `fixed` mode, for the scrolling container to apply. */
+export interface NavRequest {
+  /** Desired page transform relative to now: scale factor and pan in screen px. */
+  factor: number;
+  dx: number;
+  dy: number;
+  /** Anchor in host-local px (for zoom). */
+  cx: number;
+  cy: number;
+  reset?: boolean;
+}
+
 export interface ControllerOptions {
   host: HTMLElement;
   committed: HTMLCanvasElement;
   live: HTMLCanvasElement;
-  page: { width: number; height: number };
+  page: PageLook;
+  /** Fixed mode: the host is exactly the page at `scale`; scrolling/zoom belong to the container. */
+  fixedScale?: number;
+  onNavigate?: (n: NavRequest) => void;
+  /** Called when the user starts working on this page (so undo/redo target it). */
+  onActivate?: () => void;
   strokes: Stroke[];
   getTool(): ToolState;
   onStrokesChanged(strokes: Stroke[]): void;
@@ -71,6 +97,7 @@ let clipboard: Stroke[] = [];
 
 const ERASER_PX = 10;
 const MAX_DPR = 3;
+const MAX_CANVAS_PIXELS = 14_000_000; // keep within iPad Safari canvas limits
 const SELECT_COLOR = '#1a5fd0';
 
 /**
@@ -84,6 +111,8 @@ export class CanvasController {
   private view: View = { scale: 1, tx: 0, ty: 0 };
   private vp = { w: 1, h: 1 };
   private dpr = 1;
+  private look: PageLook;
+  private fixedScale: number | undefined;
   private cctx: CanvasRenderingContext2D;
   private lctx: CanvasRenderingContext2D;
   private rect: DOMRect;
@@ -119,6 +148,8 @@ export class CanvasController {
   private pointsPerSec = 0;
 
   constructor(private o: ControllerOptions) {
+    this.look = o.page;
+    this.fixedScale = o.fixedScale;
     this.store = new StrokeStore(o.strokes);
     this.history = new History(this.store);
     this.history.subscribe(() => this.afterHistory());
@@ -146,7 +177,7 @@ export class CanvasController {
   }
 
   get pageSize() {
-    return { w: this.o.page.width, h: this.o.page.height };
+    return { w: this.look.width, h: this.look.height };
   }
 
   perf(): PerfStats {
@@ -168,6 +199,16 @@ export class CanvasController {
 
   // ---- public commands --------------------------------------------------
 
+  /** Toolbar state. Fixed-mode pages omit zoom: the scrolling container owns it. */
+  uiState(): UiPatch {
+    return {
+      canUndo: this.history.canUndo,
+      canRedo: this.history.canRedo,
+      hasSelection: this.selected.size > 0,
+      ...(this.fixedScale === undefined ? { zoomPct: Math.round(this.view.scale * 100) } : {}),
+    };
+  }
+
   undo() {
     this.history.undo();
   }
@@ -183,7 +224,23 @@ export class CanvasController {
   }
 
   resetView(): void {
+    if (this.fixedScale !== undefined) {
+      this.o.onNavigate?.({ factor: 1, dx: 0, dy: 0, cx: 0, cy: 0, reset: true });
+      return;
+    }
     this.setView(fitView(this.pageSize, this.vp));
+  }
+
+  /** Fixed mode: container changed the zoom. */
+  setFixedScale(scale: number): void {
+    this.fixedScale = scale;
+    this.resize();
+  }
+
+  /** Template/background/size changed. Ink is untouched. */
+  setLook(look: PageLook): void {
+    this.look = look;
+    this.resize();
   }
 
   zoomBy(factor: number): void {
@@ -220,14 +277,17 @@ export class CanvasController {
   private resize(first = false): void {
     const { clientWidth: w, clientHeight: h } = this.o.host;
     if (!w || !h) return;
-    this.dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+    let dpr = Math.min(MAX_DPR, window.devicePixelRatio || 1);
+    dpr = Math.min(dpr, Math.sqrt(MAX_CANVAS_PIXELS / (w * h)));
+    this.dpr = Math.max(0.5, dpr);
     this.vp = { w, h };
     for (const c of [this.o.committed, this.o.live]) {
       c.width = Math.round(w * this.dpr);
       c.height = Math.round(h * this.dpr);
     }
     this.rect = this.o.host.getBoundingClientRect();
-    if (first) this.view = fitView(this.pageSize, this.vp);
+    if (this.fixedScale !== undefined) this.view = { scale: this.fixedScale, tx: 0, ty: 0 };
+    else if (first) this.view = fitView(this.pageSize, this.vp);
     else this.view = clampView(this.view, this.pageSize, this.vp);
     this.committedDirty = this.liveDirty = true;
     this.emitZoom();
@@ -235,6 +295,7 @@ export class CanvasController {
   }
 
   private setView(v: View): void {
+    if (this.fixedScale !== undefined) return; // container owns the view
     this.view = clampView(v, this.pageSize, this.vp);
     this.committedDirty = this.liveDirty = true;
     this.emitZoom();
@@ -286,6 +347,7 @@ export class CanvasController {
     if (e.pointerType === 'touch' && this.drawPointer >= 0 && this.penSeen) return;
     e.preventDefault();
     this.rect = this.o.host.getBoundingClientRect();
+    this.o.onActivate?.();
     try {
       this.o.host.setPointerCapture(e.pointerId);
     } catch {
@@ -365,8 +427,13 @@ export class CanvasController {
       const y = e.clientY - this.rect.top;
       const t = this.tapStart;
       if (Math.hypot(x - t.x, y - t.y) > 10) t.moved = true;
-      const v = this.nav.move(e.pointerId, x, y, this.view);
-      if (v) this.setView(v);
+      if (this.fixedScale !== undefined) {
+        const d = this.nav.delta(e.pointerId, x, y);
+        if (d) this.o.onNavigate?.(d);
+      } else {
+        const v = this.nav.move(e.pointerId, x, y, this.view);
+        if (v) this.setView(v);
+      }
       return;
     }
     if (e.pointerId !== this.drawPointer) return;
@@ -422,6 +489,20 @@ export class CanvasController {
   }
 
   private onWheel = (e: WheelEvent): void => {
+    if (this.fixedScale !== undefined) {
+      // Plain wheel scrolls the container natively; only pinch/ctrl-wheel zooms.
+      if (!(e.ctrlKey || e.metaKey)) return;
+      e.preventDefault();
+      const f = Math.exp(-e.deltaY * 0.01);
+      this.o.onNavigate?.({
+        factor: f,
+        dx: 0,
+        dy: 0,
+        cx: e.clientX - this.rect.left,
+        cy: e.clientY - this.rect.top,
+      });
+      return;
+    }
     e.preventDefault();
     const x = e.clientX - this.rect.left;
     const y = e.clientY - this.rect.top;
@@ -544,14 +625,17 @@ export class CanvasController {
     ctx.setTransform(1, 0, 0, 1, 0, 0);
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
     this.applyView(ctx);
-    const { width: pw, height: ph } = this.o.page;
-    ctx.save();
-    ctx.shadowColor = 'rgba(0,0,0,0.28)';
-    ctx.shadowBlur = 12 * this.dpr;
-    ctx.shadowOffsetY = 2 * this.dpr;
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, pw, ph);
-    ctx.restore();
+    const { width: pw, height: ph } = this.look;
+    if (this.fixedScale === undefined) {
+      ctx.save();
+      ctx.shadowColor = 'rgba(0,0,0,0.28)';
+      ctx.shadowBlur = 12 * this.dpr;
+      ctx.shadowOffsetY = 2 * this.dpr;
+      ctx.fillStyle = this.look.background;
+      ctx.fillRect(0, 0, pw, ph);
+      ctx.restore();
+    }
+    drawPaper(ctx, pw, ph, this.look.template, this.look.background);
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, pw, ph);

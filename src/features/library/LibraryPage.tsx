@@ -22,7 +22,7 @@ import { useLive, useSetting } from '@/ui/useLive';
 import { ConfirmDialog, PromptDialog } from '@/ui/Dialogs';
 import { MoveDialog } from './Dialogs';
 import { ItemCard } from './ItemCard';
-import { ItemMenu, type MenuAction } from './ItemMenu';
+import { ItemMenu, type MenuAction } from '@/ui/ItemMenu';
 import {
   deleteForever,
   duplicate,

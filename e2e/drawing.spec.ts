@@ -90,6 +90,7 @@ test('zoom and pan keep ink crisp; reset restores', async ({ page }) => {
   await createNotebook(page);
   await drawLine(page, 220, 250, 480, 250);
   const zoomBtn = page.getByRole('button', { name: /% · Fit/ });
+  await page.waitForTimeout(300); // let the fit zoom settle
   const start = await zoomBtn.textContent();
   const b = await hostBox(page);
   await page.mouse.move(b.x + 350, b.y + 250);

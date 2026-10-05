@@ -46,19 +46,40 @@ export interface Stroke {
   points: StrokePoint[];
 }
 
-/** A4 at 96 dpi. Page sizes and templates are added in prompt 03. */
-export const DEFAULT_PAGE_WIDTH = 794;
-export const DEFAULT_PAGE_HEIGHT = 1123;
+export type TemplateKind = 'blank' | 'ruled' | 'grid' | 'dotted' | 'cornell';
 
+/** Vector page background. Drawn behind the ink; never baked into strokes. */
+export interface PageTemplate {
+  kind: TemplateKind;
+  /** Distance between lines/dots in page px. */
+  spacing: number;
+  color: string;
+}
+
+export type PageSizeName = 'A4' | 'Letter' | 'A5' | 'custom';
+
+export const DEFAULT_TEMPLATE: PageTemplate = { kind: 'blank', spacing: 28, color: '#c5cfdc' };
+export const DEFAULT_BACKGROUND = '#ffffff';
+
+/** Page metadata. Ink lives in `PageContent` so listing pages never loads strokes. */
 export interface Page {
   id: string;
   documentId: string;
   order: number;
-  width: number;
+  width: number; // page px at 96 dpi, already orientation-adjusted
   height: number;
-  strokes: Stroke[];
+  sizeName: PageSizeName;
+  template: PageTemplate;
+  background: string;
+  bookmarked: boolean;
+  deletedAt: number | null; // soft delete so page operations can be undone
   createdAt: number;
   updatedAt: number;
+}
+
+export interface PageContent {
+  pageId: string;
+  strokes: Stroke[];
 }
 
 export type AssetKind = 'pdf' | 'image' | 'thumbnail';

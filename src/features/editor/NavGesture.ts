@@ -5,7 +5,16 @@ interface P {
   y: number;
 }
 
-/** One finger pans, two fingers pinch-zoom and pan. Pure view math; no DOM. */
+/** Zoom by `factor` around (cx, cy), then pan by (dx, dy). All in host-local px. */
+export interface NavDelta {
+  factor: number;
+  cx: number;
+  cy: number;
+  dx: number;
+  dy: number;
+}
+
+/** One finger pans, two fingers pinch-zoom and pan. Pure math; no DOM. */
 export class NavGesture {
   private pts = new Map<number, P>();
 
@@ -31,25 +40,31 @@ export class NavGesture {
     this.pts.clear();
   }
 
-  /** Returns the updated view, or null if this pointer isn't part of the gesture. */
-  move(id: number, x: number, y: number, v: View): View | null {
+  /** Incremental change since the previous call, or null if this pointer isn't tracked. */
+  delta(id: number, x: number, y: number): NavDelta | null {
     const prev = this.pts.get(id);
     if (!prev) return null;
     if (this.pts.size === 1) {
       this.pts.set(id, { x, y });
-      return { ...v, tx: v.tx + (x - prev.x), ty: v.ty + (y - prev.y) };
+      return { factor: 1, cx: x, cy: y, dx: x - prev.x, dy: y - prev.y };
     }
-    const [a, b] = [...this.pts.entries()];
-    const centre = (p: P, q: P) => ({ x: (p.x + q.x) / 2, y: (p.y + q.y) / 2 });
-    const dist = (p: P, q: P) => Math.hypot(p.x - q.x, p.y - q.y);
-    const before = { a: a![1], b: b![1] };
+    const before = [...this.pts.values()].map((p) => ({ ...p }));
     this.pts.set(id, { x, y });
-    const [a2, b2] = [...this.pts.entries()];
-    const c0 = centre(before.a, before.b);
-    const c1 = centre(a2![1], b2![1]);
-    const d0 = dist(before.a, before.b);
-    const d1 = dist(a2![1], b2![1]);
-    const zoomed = d0 > 0 ? zoomAt(v, c0.x, c0.y, v.scale * (d1 / d0)) : v;
-    return { ...zoomed, tx: zoomed.tx + (c1.x - c0.x), ty: zoomed.ty + (c1.y - c0.y) };
+    const after = [...this.pts.values()];
+    const [a0, b0] = before as [P, P];
+    const [a1, b1] = after as [P, P];
+    const c0 = { x: (a0.x + b0.x) / 2, y: (a0.y + b0.y) / 2 };
+    const c1 = { x: (a1.x + b1.x) / 2, y: (a1.y + b1.y) / 2 };
+    const d0 = Math.hypot(a0.x - b0.x, a0.y - b0.y);
+    const d1 = Math.hypot(a1.x - b1.x, a1.y - b1.y);
+    return { factor: d0 > 0 ? d1 / d0 : 1, cx: c0.x, cy: c0.y, dx: c1.x - c0.x, dy: c1.y - c0.y };
+  }
+
+  /** Apply the change to a viewport view (single-page mode). */
+  move(id: number, x: number, y: number, v: View): View | null {
+    const d = this.delta(id, x, y);
+    if (!d) return null;
+    const z = zoomAt(v, d.cx, d.cy, v.scale * d.factor);
+    return { ...z, tx: z.tx + d.dx, ty: z.ty + d.dy };
   }
 }

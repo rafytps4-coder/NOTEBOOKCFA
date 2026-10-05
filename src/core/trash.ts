@@ -78,7 +78,9 @@ export async function listTrash(): Promise<TrashContents> {
 
 /** Removes the document, its pages and its assets. Nothing else is touched. */
 export async function permanentDeleteDocument(id: string): Promise<void> {
-  await db.transaction('rw', db.documents, db.pages, db.assets, async () => {
+  await db.transaction('rw', db.documents, db.pages, db.pageContent, db.assets, async () => {
+    const pageIds = await db.pages.where('documentId').equals(id).primaryKeys();
+    await db.pageContent.bulkDelete(pageIds);
     await db.pages.where('documentId').equals(id).delete();
     await db.assets.where('documentId').equals(id).delete();
     await db.documents.delete(id);
@@ -87,14 +89,24 @@ export async function permanentDeleteDocument(id: string): Promise<void> {
 
 /** Removes the folder, all subfolders, and every document inside them (with pages/assets). */
 export async function permanentDeleteFolder(id: string): Promise<void> {
-  await db.transaction('rw', db.folders, db.documents, db.pages, db.assets, async () => {
-    const ids = [id, ...(await descendantFolderIds(id))];
-    const docIds = await db.documents.where('folderId').anyOf(ids).primaryKeys();
-    await db.pages.where('documentId').anyOf(docIds).delete();
-    await db.assets.where('documentId').anyOf(docIds).delete();
-    await db.documents.bulkDelete(docIds);
-    await db.folders.bulkDelete(ids);
-  });
+  await db.transaction(
+    'rw',
+    db.folders,
+    db.documents,
+    db.pages,
+    db.pageContent,
+    db.assets,
+    async () => {
+      const ids = [id, ...(await descendantFolderIds(id))];
+      const docIds = await db.documents.where('folderId').anyOf(ids).primaryKeys();
+      const pageIds = await db.pages.where('documentId').anyOf(docIds).primaryKeys();
+      await db.pageContent.bulkDelete(pageIds);
+      await db.pages.where('documentId').anyOf(docIds).delete();
+      await db.assets.where('documentId').anyOf(docIds).delete();
+      await db.documents.bulkDelete(docIds);
+      await db.folders.bulkDelete(ids);
+    },
+  );
 }
 
 export async function emptyTrash(): Promise<void> {
@@ -105,28 +117,36 @@ export async function emptyTrash(): Promise<void> {
 
 /** Deep copy of a folder subtree (folders, documents, pages, assets). Returns the new root. */
 export async function duplicateFolder(id: string): Promise<Folder> {
-  return db.transaction('rw', db.folders, db.documents, db.pages, db.assets, async () => {
-    const src = await db.folders.get(id);
-    if (!src) throw new Error('Folder not found');
-    const t = now();
-    const copyTree = async (folder: Folder, parentId: string, name: string): Promise<Folder> => {
-      const copy: Folder = {
-        ...folder,
-        id: newId(),
-        name,
-        parentId,
-        favorite: false,
-        createdAt: t,
-        updatedAt: t,
-        deletedAt: null,
+  return db.transaction(
+    'rw',
+    db.folders,
+    db.documents,
+    db.pages,
+    db.pageContent,
+    db.assets,
+    async () => {
+      const src = await db.folders.get(id);
+      if (!src) throw new Error('Folder not found');
+      const t = now();
+      const copyTree = async (folder: Folder, parentId: string, name: string): Promise<Folder> => {
+        const copy: Folder = {
+          ...folder,
+          id: newId(),
+          name,
+          parentId,
+          favorite: false,
+          createdAt: t,
+          updatedAt: t,
+          deletedAt: null,
+        };
+        await db.folders.add(copy);
+        const docs = await db.documents.where('folderId').equals(folder.id).toArray();
+        for (const d of docs) if (d.deletedAt === null) await copyDocumentRows(d, copy.id, d.title);
+        const subs = await db.folders.where('parentId').equals(folder.id).toArray();
+        for (const s of subs) if (s.deletedAt === null) await copyTree(s, copy.id, s.name);
+        return copy;
       };
-      await db.folders.add(copy);
-      const docs = await db.documents.where('folderId').equals(folder.id).toArray();
-      for (const d of docs) if (d.deletedAt === null) await copyDocumentRows(d, copy.id, d.title);
-      const subs = await db.folders.where('parentId').equals(folder.id).toArray();
-      for (const s of subs) if (s.deletedAt === null) await copyTree(s, copy.id, s.name);
-      return copy;
-    };
-    return copyTree(src, src.parentId, `${src.name} copy`);
-  });
+      return copyTree(src, src.parentId, `${src.name} copy`);
+    },
+  );
 }

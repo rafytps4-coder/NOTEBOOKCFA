@@ -24,6 +24,8 @@ interface EditorState {
   zoomPct: number;
   saveState: SaveState;
   perfOverlay: boolean;
+  /** Page whose undo/redo/selection the toolbar controls. */
+  activePageId: string | null;
 
   setTool: (t: EditorTool) => void;
   setOption: (patch: Partial<ToolOptions>) => void;
@@ -54,6 +56,7 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   zoomPct: 100,
   saveState: 'saved',
   perfOverlay: false,
+  activePageId: null,
 
   setTool: (tool) => set({ tool }),
   setOption: (patch) => {

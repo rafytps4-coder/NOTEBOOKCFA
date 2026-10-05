@@ -87,15 +87,25 @@ export async function copyDocumentRows(
     deletedAt: null,
   };
   await db.documents.add(copy);
-  const pages = await db.pages.where('documentId').equals(src.id).toArray();
-  await db.pages.bulkAdd(pages.map((p) => ({ ...p, id: newId(), documentId: copy.id })));
-  const assets = await db.assets.where('documentId').equals(src.id).toArray();
+  const pages = (await db.pages.where('documentId').equals(src.id).toArray()).filter(
+    (p) => p.deletedAt === null,
+  );
+  const idMap = new Map(pages.map((p) => [p.id, newId()]));
+  await db.pages.bulkAdd(pages.map((p) => ({ ...p, id: idMap.get(p.id)!, documentId: copy.id })));
+  const contents = await db.pageContent.bulkGet(pages.map((p) => p.id));
+  await db.pageContent.bulkAdd(
+    contents.flatMap((c) => (c ? [{ ...c, pageId: idMap.get(c.pageId)! }] : [])),
+  );
+  // Page thumbnails are keyed by page id; they are regenerated lazily for the copy.
+  const assets = (await db.assets.where('documentId').equals(src.id).toArray()).filter(
+    (a) => a.name !== 'page-thumbnail',
+  );
   await db.assets.bulkAdd(assets.map((a) => ({ ...a, id: newId(), documentId: copy.id })));
   return copy;
 }
 
 export async function duplicateDocument(id: string): Promise<NotebookDocument> {
-  return db.transaction('rw', db.documents, db.pages, db.assets, async () => {
+  return db.transaction('rw', db.documents, db.pages, db.pageContent, db.assets, async () => {
     const src = await db.documents.get(id);
     if (!src) throw new Error('Document not found');
     return copyDocumentRows(src, src.folderId, `${src.title} copy`);

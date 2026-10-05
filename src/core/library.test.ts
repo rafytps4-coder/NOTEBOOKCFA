@@ -38,10 +38,15 @@ async function addPageAndAsset(documentId: string, tag: string) {
     order: 0,
     width: 794,
     height: 1123,
-    strokes: [],
+    sizeName: 'A4',
+    template: { kind: 'blank', spacing: 28, color: '#ccc' },
+    background: '#fff',
+    bookmarked: false,
+    deletedAt: null,
     createdAt: 1,
     updatedAt: 1,
   });
+  await db.pageContent.put({ pageId: `p-${tag}`, strokes: [] });
   await db.assets.add({
     id: `a-${tag}`,
     documentId,
