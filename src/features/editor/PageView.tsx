@@ -20,6 +20,7 @@ import {
   reportSave,
   unregisterController,
 } from './pageRegistry';
+import { pdfPageBackground } from '../pdf/pdfBackground';
 import { renderThumbnail } from './thumbnail';
 import { TextEditorOverlay } from './TextEditorOverlay';
 
@@ -67,7 +68,7 @@ export function PageView({ doc, page, pageNumber, pageCount, fixedScale, onNavig
       const c = controller;
       if (!c) return;
       const p = pageRef.current;
-      const blob = await renderThumbnail(c.content(), p);
+      const blob = await renderThumbnail(c.content(), p, doc.id);
       if (!blob) return;
       await setPageThumbnail(doc.id, pageId, blob);
       if (p.order === 0) await setThumbnail(doc.id, blob);
@@ -97,6 +98,9 @@ export function PageView({ doc, page, pageNumber, pageCount, fixedScale, onNavig
         strokes: ink.strokes,
         objects: ink.objects,
         fixedScale: scaleRef.current,
+        background: pageRef.current.pdf
+          ? pdfPageBackground(doc.id, pageRef.current.pdf.index)
+          : undefined,
         getTool: () => {
           const st = store.getState();
           return {

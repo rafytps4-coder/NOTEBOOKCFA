@@ -38,13 +38,23 @@ interface Props {
   scrollerRef: RefObject<HTMLDivElement | null>;
   onCurrent: (index: number) => void;
   onNavigate: (pageId: string, n: NavRequest) => void;
+  /** Changes when page ink is replaced wholesale; remounts live pages so they reload it. */
+  epoch?: number;
 }
 
 /**
  * Vertical scrolling list. Every page has a fixed-size wrapper (cheap), but only pages near the
  * viewport get a live canvas; nearby others show their saved thumbnail; the rest stay empty.
  */
-export function ContinuousPages({ doc, pages, zoom, scrollerRef, onCurrent, onNavigate }: Props) {
+export function ContinuousPages({
+  doc,
+  pages,
+  zoom,
+  scrollerRef,
+  onCurrent,
+  onNavigate,
+  epoch = 0,
+}: Props) {
   const offsets = useMemo(() => pageOffsets(pages, zoom), [pages, zoom]);
   const [range, setRange] = useState({ first: 0, last: 0 }); // immediate: drives thumbnails
   const [liveRange, setLiveRange] = useState({ first: 0, last: 0 }); // settled: drives live canvases
@@ -105,6 +115,7 @@ export function ContinuousPages({ doc, pages, zoom, scrollerRef, onCurrent, onNa
           >
             {live ? (
               <PageView
+                key={epoch}
                 doc={doc}
                 page={page}
                 pageNumber={i + 1}

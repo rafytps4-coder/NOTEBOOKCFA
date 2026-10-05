@@ -4,6 +4,7 @@ import { ItemMenu, type MenuAction } from '@/ui/ItemMenu';
 import type { PageActions } from './pageActions';
 import type { PageHistory } from './pageHistory';
 import { PageThumbImg } from './PageThumbImg';
+import { OutlinePanel } from '../pdf/OutlinePanel';
 
 interface Props {
   pages: Page[];
@@ -16,10 +17,14 @@ interface Props {
   onAskDelete: (page: Page) => void;
   onAskMove: (page: Page, index: number) => void;
   onClose: () => void;
+  /** PDF documents: id (to read the outline from) and a jump handler for original page indexes. */
+  pdfDocId?: string;
+  onJumpPdf?: (pdfPageIndex: number) => void;
 }
 
 export function PageSidebar(p: Props) {
   const [bookmarksOnly, setBookmarksOnly] = useState(false);
+  const [tab, setTab] = useState<'pages' | 'outline'>('pages');
   const [menu, setMenu] = useState<{ x: number; y: number; index: number } | null>(null);
   const [drag, setDrag] = useState<{ id: string; from: number; over: number } | null>(null);
 
@@ -115,9 +120,30 @@ export function PageSidebar(p: Props) {
           ★ Bookmarks
         </button>
       </div>
+      {p.pdfDocId && (
+        <div className="btn-row sidebar-tools" role="group" aria-label="Sidebar view">
+          <button className="btn" aria-pressed={tab === 'pages'} onClick={() => setTab('pages')}>
+            Pages
+          </button>
+          <button
+            className="btn"
+            aria-pressed={tab === 'outline'}
+            onClick={() => setTab('outline')}
+          >
+            Outline
+          </button>
+        </div>
+      )}
+      {tab === 'outline' && p.pdfDocId && p.onJumpPdf && (
+        <div className="outline-wrap">
+          <OutlinePanel documentId={p.pdfDocId} onJump={p.onJumpPdf} />
+        </div>
+      )}
       <span hidden>{p.historyVersion}</span>
-      {rows.length === 0 && <p className="muted pad">No bookmarked pages yet.</p>}
-      <ol className="page-list">
+      {tab === 'pages' && rows.length === 0 && (
+        <p className="muted pad">No bookmarked pages yet.</p>
+      )}
+      <ol className="page-list" hidden={tab !== 'pages'}>
         {rows.map(({ page, index }) => (
           <SidebarItem
             key={page.id}

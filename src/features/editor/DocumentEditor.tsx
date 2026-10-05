@@ -18,6 +18,20 @@ import { useEditorStore } from './editorStore';
 import { useEditorSettings } from './useEditorSettings';
 import { clearImageCache } from './imageCache';
 import { importImageFile } from './imageImport';
+import { ItemMenu } from '@/ui/ItemMenu';
+import { safeFilename, saveBlob } from '@/ui/saveFile';
+import { flushAllPages } from './pageRegistry';
+import { clearInkCache } from './pageRegistry';
+import { pdfBitmaps } from '../pdf/bitmapCache';
+import { closePdf } from '../pdf/pdfDocs';
+import { exportOriginal, exportPdf, type ExportMode } from '../pdf/exportPdf';
+import { browserRasterizer } from '../pdf/rasterizer';
+import {
+  clearAnnotations,
+  hasAnnotations,
+  restoreAnnotations,
+  snapshotAnnotations,
+} from '../pdf/annotations';
 
 type ViewMode = 'continuous' | 'single';
 const SAVE_LABEL = {
@@ -48,10 +62,19 @@ export function DocumentEditor({
   const [zoomState, setZoomState] = useState<number | null>(null);
   const [containerW, setContainerW] = useState(800);
   const [dlg, setDlg] = useState<
-    { t: 'delete'; page: Page } | { t: 'move'; page: Page; index: number } | { t: 'last' } | null
+    | { t: 'delete'; page: Page }
+    | { t: 'move'; page: Page; index: number }
+    | { t: 'last' }
+    | { t: 'wipe' }
+    | null
   >(null);
   const [, bump] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
+  const isPdf = doc.kind === 'pdf';
+  // Bumped when ink is replaced wholesale (remove/restore annotations) so every page reloads it.
+  const [epoch, setEpoch] = useState(0);
+  const [pdfMenu, setPdfMenu] = useState<{ x: number; y: number } | null>(null);
+  const [job, setJob] = useState<{ label: string; done: number; total: number } | null>(null);
   const saveState = useEditorStore((s) => s.saveState);
   const scrollerRef = useRef<HTMLDivElement>(null);
 
@@ -242,6 +265,65 @@ export function DocumentEditor({
   };
 
   useEffect(() => () => clearImageCache(), []);
+  useEffect(
+    () => () => {
+      if (isPdf) {
+        pdfBitmaps.release(doc.id); // free rendered pages and the parsed document
+        void closePdf(doc.id);
+      }
+    },
+    [doc.id, isPdf],
+  );
+
+  // ---- PDF actions ----------------------------------------------------------------
+  const runExport = async (mode: ExportMode | 'original', suffix: string) => {
+    setNotice(null);
+    setJob({ label: 'Preparing…', done: 0, total: 1 });
+    try {
+      await flushAllPages(); // include ink that is still waiting for its autosave
+      const blob =
+        mode === 'original'
+          ? await exportOriginal(doc.id)
+          : await exportPdf(doc.id, {
+              mode,
+              rasterizer: browserRasterizer,
+              onProgress: (p) => setJob({ label: 'Building PDF', done: p.done, total: p.total }),
+            });
+      await saveBlob(blob, `${safeFilename(doc.title)}${suffix}.pdf`);
+    } catch (e) {
+      console.error(e);
+      setNotice('The PDF could not be exported. Your notebook is unchanged.');
+    } finally {
+      setJob(null);
+    }
+  };
+
+  const wipeAnnotations = async () => {
+    await flushAllPages();
+    const snap = await snapshotAnnotations(doc.id);
+    if (!hasAnnotations(snap)) return setNotice('There are no annotations to remove.');
+    await clearAnnotations(snap);
+    clearInkCache();
+    setEpoch((n) => n + 1);
+    history.push({
+      label: 'remove annotations',
+      undo: async () => {
+        await restoreAnnotations(snap);
+        clearInkCache();
+        setEpoch((n) => n + 1);
+      },
+      redo: async () => {
+        await clearAnnotations(snap);
+        clearInkCache();
+        setEpoch((n) => n + 1);
+      },
+    });
+  };
+
+  const jumpToPdfPage = (pdfIndex: number) => {
+    const i = pages.findIndex((p) => p.pdf?.index === pdfIndex);
+    if (i >= 0) goTo(i);
+  };
 
   const askDelete = (page: Page) =>
     pages.length <= 1 ? setDlg({ t: 'last' }) : setDlg({ t: 'delete', page });
@@ -279,10 +361,30 @@ export function DocumentEditor({
             Single page
           </button>
         </div>
+        {isPdf && (
+          <button
+            className="btn"
+            aria-haspopup="menu"
+            onClick={(e) => {
+              const r = e.currentTarget.getBoundingClientRect();
+              setPdfMenu({ x: r.left, y: r.bottom });
+            }}
+          >
+            PDF ▾
+          </button>
+        )}
         <span className={`save-state save-${saveState}`} role="status" aria-live="polite">
           {SAVE_LABEL[saveState]}
         </span>
       </header>
+      {job && (
+        <div className="pdf-progress" role="status">
+          <span>
+            {job.label}… {job.done}/{job.total}
+          </span>
+          <progress value={job.done} max={job.total} />
+        </div>
+      )}
       <Toolbar
         actions={{
           undo: () => activeController()?.undo(),
@@ -328,6 +430,8 @@ export function DocumentEditor({
             onAskDelete={askDelete}
             onAskMove={(page, i) => setDlg({ t: 'move', page, index: i })}
             onClose={() => setSidebarOpen(false)}
+            pdfDocId={isPdf ? doc.id : undefined}
+            onJumpPdf={jumpToPdfPage}
           />
         )}
         <div className="editor-main">
@@ -340,13 +444,14 @@ export function DocumentEditor({
                 scrollerRef={scrollerRef}
                 onCurrent={onCurrent}
                 onNavigate={onNavigate}
+                epoch={epoch}
               />
             </div>
           ) : (
             current && (
               <div className="single-host">
                 <PageView
-                  key={current.id}
+                  key={`${current.id}:${epoch}`}
                   doc={doc}
                   page={current}
                   pageNumber={index + 1}
@@ -368,6 +473,24 @@ export function DocumentEditor({
             <span aria-live="polite">
               Page {index + 1} of {pages.length}
             </span>
+            <label className="goto">
+              Go to
+              <input
+                type="number"
+                min={1}
+                max={pages.length}
+                aria-label="Go to page number"
+                key={index}
+                defaultValue={index + 1}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    const n = Math.round(Number(e.currentTarget.value));
+                    if (n >= 1 && n <= pages.length) goTo(n - 1);
+                  }
+                  e.stopPropagation(); // typing digits must not trigger editor shortcuts
+                }}
+              />
+            </label>
             <button
               className="btn"
               disabled={index >= pages.length - 1}
@@ -399,6 +522,42 @@ export function DocumentEditor({
             const page = dlg.page;
             setDlg(null);
             void actions.remove(page.id);
+          }}
+        />
+      )}
+      {pdfMenu && (
+        <ItemMenu
+          x={pdfMenu.x}
+          y={pdfMenu.y}
+          onClose={() => setPdfMenu(null)}
+          actions={[
+            {
+              label: 'Export annotated PDF',
+              onSelect: () => void runExport('annotated', '-annotated'),
+            },
+            { label: 'Export original PDF', onSelect: () => void runExport('original', '') },
+            {
+              label: 'Export annotations only',
+              onSelect: () => void runExport('annotationsOnly', '-annotations'),
+            },
+            {
+              label: 'Remove all annotations…',
+              danger: true,
+              onSelect: () => setDlg({ t: 'wipe' }),
+            },
+          ]}
+        />
+      )}
+      {dlg?.t === 'wipe' && (
+        <ConfirmDialog
+          title="Remove all annotations?"
+          message="All ink, text, shapes and images on every page will be removed. The original PDF is not changed. Use “Undo page change” in the Pages list to bring them back until you leave this document."
+          confirmLabel="Remove annotations"
+          danger
+          onClose={() => setDlg(null)}
+          onConfirm={() => {
+            setDlg(null);
+            void wipeAnnotations();
           }}
         />
       )}

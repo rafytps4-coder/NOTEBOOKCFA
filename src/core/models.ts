@@ -61,6 +61,12 @@ export type PageSizeName = 'A4' | 'Letter' | 'A5' | 'custom';
 export const DEFAULT_TEMPLATE: PageTemplate = { kind: 'blank', spacing: 28, color: '#c5cfdc' };
 export const DEFAULT_BACKGROUND = '#ffffff';
 
+/** Links a page to a page of the document's original PDF (rendered as its background). */
+export interface PdfPageRef {
+  /** 0-based index in the original PDF file. */
+  index: number;
+}
+
 /** Page metadata. Ink lives in `PageContent` so listing pages never loads strokes. */
 export interface Page {
   id: string;
@@ -72,6 +78,8 @@ export interface Page {
   template: PageTemplate;
   background: string;
   bookmarked: boolean;
+  /** Present on pages that come from the PDF; absent on blank/template pages added later. */
+  pdf?: PdfPageRef;
   deletedAt: number | null; // soft delete so page operations can be undone
   createdAt: number;
   updatedAt: number;
@@ -135,6 +143,8 @@ export interface Asset {
   mime: string;
   name: string;
   size: number;
+  /** SHA-256 (hex) of the original bytes, recorded for imported PDFs so integrity can be checked. */
+  sha256?: string;
   blob: Blob;
   createdAt: number;
 }

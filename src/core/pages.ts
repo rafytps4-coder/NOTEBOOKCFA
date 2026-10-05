@@ -120,7 +120,10 @@ export async function duplicatePage(pageId: string): Promise<Page> {
     if (!src) throw new Error('Page not found');
     const content = await db.pageContent.get(pageId);
     const copy = await insertPage(src.documentId, src.order + 1, styleOf(src));
-    await db.pages.update(copy.id, { bookmarked: src.bookmarked });
+    await db.pages.update(copy.id, {
+      bookmarked: src.bookmarked,
+      ...(src.pdf ? { pdf: src.pdf } : {}),
+    });
     await db.pageContent.put({
       pageId: copy.id,
       strokes: content?.strokes ?? [],

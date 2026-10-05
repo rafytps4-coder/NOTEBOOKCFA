@@ -9,3 +9,4 @@ export { requestPersistence, useStorageStore } from './storage';
 export * from './pages';
 export * from './thumbnails';
 export * from './assets';
+export * from './pdfDocs';

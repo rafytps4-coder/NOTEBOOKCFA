@@ -53,12 +53,13 @@ Built in prompt 01: `src/core/` holds `models`, `db` (Dexie v1), repositories (`
 - Pointer Events with `getCoalescedEvents()`, `touch-action: none`, DPR-aware. No React state on the pointer path.
 - `perfect-freehand` for outlines. Palm rejection: once a `pen` pointer is seen, `touch` doesn't draw.
 
-## 5. PDF approach _(planned, prompt 05)_
+## 5. PDF approach (built in prompt 05)
 
-- Original PDF Blob stored in `assets`, never modified.
-- pdf.js renders in a worker, lazily, with a size-bounded LRU bitmap cache.
-- Annotations live in a separate per-page layer using the page object model, in PDF page coordinates.
-- Export with pdf-lib, strokes as vector paths, chunked/async with progress.
+- **Import** (`features/pdf/importPdf.ts`): file picker or drag-and-drop on the Library. The file is stored byte-for-byte as an `assets` row (`kind: 'pdf'`, SHA-256 recorded) and never modified; pdf.js reads only page sizes. One `Page` per PDF page, sized in PDF points with `/Rotate` already applied (`page.pdf.index` links back to the original page), so annotations live in "as displayed" page space and stay aligned at every zoom and rotation. Pages added later (blank/template) have no `pdf` link.
+- **Rendering** (`bitmapCache.ts`): pdf.js (legacy build, for older Safari) parses/decodes in its own Web Worker; painting happens on the main thread, one page at a time. Rendered pages are cached in a size-bounded LRU (128 MB budget, canvases shrunk on eviction) at bucketed scales so zooming reuses bitmaps; only pages near the viewport are rendered (see §3 pages). The canvas controller paints the PDF bitmap in place of paper, then objects, then ink.
+- **Annotations**: the same strokes/objects model as notebooks, stored in `pageContent`. "Remove all annotations" only rewrites `pageContent` (snapshot kept in the session for undo); the PDF asset's hash is unchanged (tested).
+- **Export** (`exportPdf.ts`, pdf-lib): PDF pages are copied (vector content kept), template pages are drawn from their template, ink is written as filled vector paths (colour, opacity, multiply for highlighter), shapes as vector paths, text with Helvetica (non-Latin text and cropped/odd-format images fall back to canvas rasterisation), images embedded. Display→PDF coordinates go through `displayToUser` (handles `/Rotate`, crop-box origin). Work is chunked per page with a progress callback and a yield to the UI between pages; it runs on the main thread, not in a worker. Also "Export original" (identical bytes) and "Export annotations only".
+- **Not built / honest limits**: (1) no Web Share Target / "Open in…": iPad Safari does not support the Web Share Target API for installed web apps, so import is via the file picker (Files app, iCloud Drive) or drag-and-drop from Split View; (2) highlighting is freehand only: there is no text-selection highlight because the pdf.js text layer is not integrated; (3) password-protected PDFs are rejected with a message; (4) text boxes in an exported PDF use a standard Latin font; (5) very large PDFs are held in memory while open (original bytes + parsed document).
 
 ## 6. Search approach _(planned, prompt 06)_
 

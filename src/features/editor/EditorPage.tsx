@@ -11,14 +11,12 @@ import {
   type Page,
   type PageStyle,
 } from '@/core';
-import { Planned } from '@/ui/Planned';
 import { DocumentEditor } from './DocumentEditor';
 import { loadDefaultStyle } from './pageDefaults';
 
 type Loaded =
   | { s: 'loading' }
   | { s: 'missing' }
-  | { s: 'unsupported'; doc: NotebookDocument }
   | { s: 'ready'; doc: NotebookDocument; pages: Page[]; style: PageStyle };
 
 export function EditorPage() {
@@ -32,7 +30,6 @@ export function EditorPage() {
       const doc = await getDocument(id);
       if (cancelled) return;
       if (!doc || doc.deletedAt !== null) return setState({ s: 'missing' });
-      if (doc.kind === 'pdf') return setState({ s: 'unsupported', doc });
       await purgeDeletedPages(id); // pages deleted in an earlier session are gone for good
       const style = await loadDefaultStyle();
       if ((await listPages(id)).length === 0) await createPage(id, 0, style);
@@ -65,14 +62,10 @@ export function EditorPage() {
       <p>
         <Link to="/library">← Library</Link>
       </p>
-      {state.s === 'missing' ? (
-        <section>
-          <h1>Document not found</h1>
-          <p>It may have been moved to the trash or deleted.</p>
-        </section>
-      ) : (
-        <Planned title={state.doc.title} text="PDF documents can’t be opened yet." />
-      )}
+      <section>
+        <h1>Document not found</h1>
+        <p>It may have been moved to the trash or deleted.</p>
+      </section>
     </>
   );
 }

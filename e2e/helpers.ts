@@ -191,10 +191,10 @@ export async function storedImageAssets(page: Page) {
   return rows.filter((a) => a.kind === 'image');
 }
 
-/** Page-space point (A4 portrait: 794 px wide) → screen coordinates of the first page. */
-export async function pageToScreen(page: Page, x: number, y: number) {
+/** Page-space point → screen coordinates of the first page (`pageWidth` defaults to A4: 794 px). */
+export async function pageToScreen(page: Page, x: number, y: number, pageWidth = 794) {
   const box = await hostBox(page);
-  const k = box.width / 794;
+  const k = box.width / pageWidth;
   return { x: box.x + x * k, y: box.y + y * k, k };
 }
 

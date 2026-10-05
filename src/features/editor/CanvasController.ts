@@ -49,6 +49,7 @@ import {
 } from '@/engines/drawing';
 import { newId } from '@/core/ids';
 import type { ImageObject, PageTemplate } from '@/core/models';
+import type { PageBackground } from '../pdf/pdfBackground';
 import { subscribeImages } from './imageCache';
 import { NavGesture } from './NavGesture';
 import {
@@ -143,6 +144,8 @@ export interface ControllerOptions {
   onEditText?: (req: EditTextRequest | null) => void;
   /** Switch tool (e.g. back to Select after creating an object). */
   onToolChange?: (tool: EditorTool) => void;
+  /** Paints something other than plain paper behind the ink (e.g. a PDF page). */
+  background?: PageBackground;
   /** Make an image asset available to this notebook before a pasted copy refers to it. */
   resolveAsset?: (assetId: string) => Promise<string>;
 }
@@ -212,6 +215,7 @@ export class CanvasController {
   private liveDirty = true;
   private ro: ResizeObserver;
   private offImages: () => void;
+  private offBackground: () => void;
   private disposed = false;
 
   // perf counters (cheap writes only)
@@ -247,6 +251,11 @@ export class CanvasController {
       this.committedDirty = true;
       this.schedule();
     });
+    this.offBackground =
+      o.background?.subscribe(() => {
+        this.committedDirty = true;
+        this.schedule();
+      }) ?? (() => {});
     this.resize(true);
   }
 
@@ -280,6 +289,7 @@ export class CanvasController {
     cancelAnimationFrame(this.raf);
     this.ro.disconnect();
     this.offImages();
+    this.offBackground();
     const h = this.o.host;
     h.removeEventListener('pointerdown', this.onDown);
     h.removeEventListener('pointermove', this.onMove);
@@ -1045,7 +1055,8 @@ export class CanvasController {
       ctx.fillRect(0, 0, pw, ph);
       ctx.restore();
     }
-    drawPaper(ctx, pw, ph, this.look.template, this.look.background);
+    if (this.o.background) this.o.background.draw(ctx, pw, ph, this.view.scale * this.dpr);
+    else drawPaper(ctx, pw, ph, this.look.template, this.look.background);
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 0, pw, ph);

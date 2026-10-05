@@ -22,6 +22,7 @@ import { useLive, useSetting } from '@/ui/useLive';
 import { ConfirmDialog, PromptDialog } from '@/ui/Dialogs';
 import { MoveDialog } from './Dialogs';
 import { ItemCard } from './ItemCard';
+import { ImportButton, ImportProgressDialog, usePdfImport } from './ImportPdf';
 import { ItemMenu, type MenuAction } from '@/ui/ItemMenu';
 import {
   deleteForever,
@@ -89,6 +90,7 @@ export function LibraryPage({ mode }: { mode: LibraryMode }) {
   const [dialog, setDialog] = useState<Dialog>(null);
   const [menu, setMenu] = useState<{ x: number; y: number; item: LibItem } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const pdfImport = usePdfImport(folderId);
 
   const items = useLive(
     () => loadItems(mode, folderId, sort),
@@ -165,7 +167,11 @@ export function LibraryPage({ mode }: { mode: LibraryMode }) {
   }
 
   return (
-    <section>
+    <section
+      {...(mode === 'folder' ? pdfImport.dropProps : {})}
+      className={pdfImport.dragging ? 'drop-zone active' : 'drop-zone'}
+    >
+      <ImportProgressDialog busy={pdfImport.busy} />
       <h1>{mode === 'folder' && path.length ? path[path.length - 1]!.name : title}</h1>
 
       <nav aria-label="Library sections" className="subnav">
@@ -205,6 +211,7 @@ export function LibraryPage({ mode }: { mode: LibraryMode }) {
             <button className="btn" onClick={() => setDialog({ t: 'newFolder' })}>
               New folder
             </button>
+            <ImportButton onFiles={(f) => void pdfImport.importFiles(f)} />
             <button
               className="btn"
               onClick={() =>
@@ -255,9 +262,9 @@ export function LibraryPage({ mode }: { mode: LibraryMode }) {
         </div>
       </div>
 
-      {error && (
+      {(error || pdfImport.error) && (
         <p role="alert" className="error">
-          {error}
+          {error ?? pdfImport.error}
         </p>
       )}
 

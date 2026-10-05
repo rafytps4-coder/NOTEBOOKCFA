@@ -66,6 +66,11 @@ export async function flushPage(pageId: string): Promise<void> {
   await savers.get(pageId)?.flush();
 }
 
+/** Write pending ink for every mounted page (before export, duplicate-document, etc.). */
+export async function flushAllPages(): Promise<void> {
+  await Promise.all([...savers.values()].map((s) => s.flush()));
+}
+
 /** Aggregate autosave state across all mounted pages for the toolbar indicator. */
 const saveStates = new Map<string, SaveState>();
 
