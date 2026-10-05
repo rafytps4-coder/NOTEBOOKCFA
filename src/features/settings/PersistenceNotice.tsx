@@ -11,7 +11,7 @@ export function PersistenceNotice() {
       <p>
         Your browser hasn’t promised to keep this app’s storage. If the device runs low on space or
         you don’t visit for a while, it may clear your notes. Keep regular backups so nothing is
-        lost. (Backup &amp; restore is <span className="badge">Planned</span>.)
+        lost. (Settings → Storage &amp; backup.)
       </p>
       <button className="btn" onClick={() => setDismissed(true)}>
         Dismiss

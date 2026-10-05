@@ -103,6 +103,15 @@ export function Toolbar({ actions }: { actions: ToolbarActions }) {
       <div className="btn-row grow-end" role="group" aria-label="View">
         <button
           className="btn"
+          aria-pressed={s.optionsOpen}
+          aria-controls="tool-options"
+          onClick={s.toggleOptions}
+          title="Show or hide the colour, size and shape options"
+        >
+          Options
+        </button>
+        <button
+          className="btn"
           aria-pressed={s.inputMode === 'pencilAndFinger'}
           title="When on, a finger can draw until an Apple Pencil is used. When off, only the Pencil (or mouse) draws and fingers scroll and zoom."
           onClick={() =>

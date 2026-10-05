@@ -1,4 +1,5 @@
 import { db } from './db';
+import { pdfKey, syncTypedText } from './searchText';
 import { newId, now } from './ids';
 import { ROOT_ID, type DocumentKind, type NotebookDocument, type PageObject } from './models';
 import { sortItems, type SortOptions } from './sort';
@@ -110,15 +111,36 @@ export async function copyDocumentRows(
   await db.assets.bulkAdd(
     srcAssets.map((a) => ({ ...a, id: assetMap.get(a.id)!, documentId: copy.id })),
   );
+  // Search text for the copy: typed text from the copied objects, extracted PDF text carried over.
+  for (const c of contents) {
+    if (c) await syncTypedText(idMap.get(c.pageId)!, copy.id, remap(c.objects));
+  }
+  const pdfRows = (await db.searchText.where('documentId').equals(src.id).toArray()).filter(
+    (r) => r.source === 'pdf',
+  );
+  await db.searchText.bulkPut(
+    pdfRows.flatMap((r) => {
+      const pid = idMap.get(r.pageId);
+      return pid ? [{ ...r, key: pdfKey(pid), documentId: copy.id, pageId: pid }] : [];
+    }),
+  );
   return copy;
 }
 
 export async function duplicateDocument(id: string): Promise<NotebookDocument> {
-  return db.transaction('rw', db.documents, db.pages, db.pageContent, db.assets, async () => {
-    const src = await db.documents.get(id);
-    if (!src) throw new Error('Document not found');
-    return copyDocumentRows(src, src.folderId, `${src.title} copy`);
-  });
+  return db.transaction(
+    'rw',
+    db.documents,
+    db.pages,
+    db.pageContent,
+    db.assets,
+    db.searchText,
+    async () => {
+      const src = await db.documents.get(id);
+      if (!src) throw new Error('Document not found');
+      return copyDocumentRows(src, src.folderId, `${src.title} copy`);
+    },
+  );
 }
 
 export async function listDocuments(

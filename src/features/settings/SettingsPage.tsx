@@ -8,6 +8,13 @@ import {
 } from '@/features/editor/pageDefaults';
 import { cleanupOrphanAssets, findOrphanAssets, type TemplateKind } from '@/core';
 import { useState } from 'react';
+import { BackupSettings } from '@/features/backup/BackupSettings';
+import { SearchSettings } from '@/features/search/SearchSettings';
+import { AboutSection } from '@/features/about/AboutSection';
+import { ShortcutsHost } from '@/features/help/ShortcutsDialog';
+import { FirstRunGuide } from '@/features/help/FirstRunGuide';
+import { InstallGuidance } from '@/features/pwa/InstallGuidance';
+import { applyTextScale, useTextScale, TEXT_SCALES } from '@/ui/textScale';
 
 const MODES: { id: ThemeMode; label: string }[] = [
   { id: 'system', label: 'System' },
@@ -27,6 +34,9 @@ export function SettingsPage() {
     setDefaults(next);
   };
   const [cleanup, setCleanup] = useState<string | null>(null);
+  const [introSignal, setIntroSignal] = useState(false);
+  const [shortcutsSignal, setShortcutsSignal] = useState(0);
+  const textScale = useTextScale((s) => s.scale);
   const [input, setInput] = useSetting<InputMode>('editor.inputMode', 'pencilAndFinger');
   return (
     <section>
@@ -45,6 +55,21 @@ export function SettingsPage() {
           </button>
         ))}
       </div>
+      <h2 id="text-size">Text size</h2>
+      <div className="btn-row" role="group" aria-labelledby="text-size">
+        {TEXT_SCALES.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className="btn"
+            aria-pressed={textScale === t.value}
+            onClick={() => applyTextScale(t.value)}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <p className="muted">Makes text and buttons larger or smaller everywhere in the app.</p>
       <h2 id="drawing">Drawing</h2>
       <div className="btn-row" role="group" aria-labelledby="drawing">
         <button
@@ -112,7 +137,8 @@ export function SettingsPage() {
       <p className="muted">
         Used for the first page of new notebooks. Pages you add later copy the page before them.
       </p>
-      <h2 id="storage">Storage</h2>
+      <BackupSettings />
+      <h2 id="cleanup">Unused files</h2>
       <div className="btn-row" role="group" aria-labelledby="storage">
         <button
           type="button"
@@ -134,6 +160,14 @@ export function SettingsPage() {
         {cleanup ??
           'Removes images that are no longer used on any page. Close open notebooks first; things you can still undo are kept until then.'}
       </p>
+      <SearchSettings />
+      <InstallGuidance />
+      <AboutSection
+        onShowIntro={() => setIntroSignal(true)}
+        onShowShortcuts={() => setShortcutsSignal((n) => n + 1)}
+      />
+      <ShortcutsHost openSignal={shortcutsSignal} />
+      <FirstRunGuide forceOpen={introSignal} onClosed={() => setIntroSignal(false)} />
     </section>
   );
 }

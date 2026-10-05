@@ -1,4 +1,5 @@
-import { getPageContent, type PageInk } from '@/core';
+import { loadPageSafely, type PageInk } from '@/core';
+import { useDataNotices } from './dataNotices';
 import type { CanvasController } from './CanvasController';
 import { useEditorStore } from './editorStore';
 import type { PageSaver, SaveState } from './PageSaver';
@@ -14,8 +15,20 @@ export function cacheInk(pageId: string, content: PageInk): void {
 }
 
 export async function loadInk(pageId: string): Promise<PageInk> {
-  const c = await getPageContent(pageId);
-  return inkCache.get(pageId) ?? { strokes: c.strokes, objects: c.objects };
+  const cached = inkCache.get(pageId);
+  if (cached) return cached;
+  // Defensive read: a damaged row repairs itself (valid items kept, raw copy preserved, last
+  // good copy used if nothing is left) and the user is told, rather than the page failing to open.
+  const { data, repair } = await loadPageSafely(pageId);
+  if (repair) {
+    useDataNotices.getState().add({
+      id: pageId,
+      message: repair.restoredFromBackup
+        ? 'A page’s data was damaged. The last good copy was restored; the damaged data is kept aside.'
+        : `A page’s data was partly damaged: ${repair.dropped} item${repair.dropped === 1 ? ' was' : 's were'} skipped. Everything else is intact, and the original data is kept aside.`,
+    });
+  }
+  return data;
 }
 
 export function clearInkCache(): void {
@@ -78,12 +91,14 @@ export function reportSave(pageId: string, state: SaveState | null): void {
   if (state === null) saveStates.delete(pageId);
   else saveStates.set(pageId, state);
   const all = [...saveStates.values()];
-  const agg: SaveState = all.includes('error')
-    ? 'error'
-    : all.includes('saving')
-      ? 'saving'
-      : all.includes('unsaved')
-        ? 'unsaved'
-        : 'saved';
+  const agg: SaveState = all.includes('full')
+    ? 'full'
+    : all.includes('error')
+      ? 'error'
+      : all.includes('saving')
+        ? 'saving'
+        : all.includes('unsaved')
+          ? 'unsaved'
+          : 'saved';
   useEditorStore.getState().patch({ saveState: agg });
 }

@@ -8,8 +8,8 @@
   --accent: #2f6f6a;
   --accent-contrast: #ffffff;
   --focus: #1a5fd0;
-  --sidebar-w: 220px;
-  --tabbar-h: 60px;
+  --sidebar-w: 13.75rem;
+  --tabbar-h: 3.75rem;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -41,6 +41,10 @@
 
 * {
   box-sizing: border-box;
+}
+html {
+  /* Text size setting (Settings → Text size) scales every rem value in the app. */
+  font-size: calc(100% * var(--text-scale, 1));
 }
 html,
 body,
@@ -95,7 +99,7 @@ body {
   display: flex;
   align-items: center;
   gap: 10px;
-  min-height: 44px;
+  min-height: 2.75rem;
   padding: 0 12px;
   border-radius: 10px;
   color: var(--text);
@@ -139,7 +143,7 @@ body {
   font-weight: 600;
 }
 .btn {
-  min-height: 44px;
+  min-height: 2.75rem;
   padding: 0 16px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -235,7 +239,7 @@ body {
 }
 input,
 select {
-  min-height: 44px;
+  min-height: 2.75rem;
   padding: 0 10px;
   border: 1px solid var(--border);
   border-radius: 10px;
@@ -268,7 +272,7 @@ select {
 }
 .picker-row {
   width: 100%;
-  min-height: 44px;
+  min-height: 2.75rem;
   text-align: left;
   border: 0;
   background: none;
@@ -385,8 +389,8 @@ select {
   margin: 8px 8px 0;
 }
 .item-list .thumb {
-  width: 48px;
-  height: 48px;
+  width: 3rem;
+  height: 3rem;
   font-size: 1.5rem;
 }
 .item-text {
@@ -412,8 +416,8 @@ select {
   position: absolute;
   top: 6px;
   right: 6px;
-  width: 44px;
-  height: 44px;
+  width: 2.75rem;
+  height: 2.75rem;
   border: 0;
   border-radius: 10px;
   background: color-mix(in srgb, var(--surface) 85%, transparent);
@@ -433,7 +437,7 @@ select {
 .menu {
   position: fixed;
   z-index: 51;
-  min-width: 200px;
+  min-width: 12.5rem;
   display: flex;
   flex-direction: column;
   padding: 6px;
@@ -443,7 +447,7 @@ select {
   box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
 }
 .menu button {
-  min-height: 44px;
+  min-height: 2.75rem;
   padding: 0 12px;
   border: 0;
   border-radius: 8px;
@@ -537,12 +541,12 @@ select {
   border-bottom: 1px solid var(--border);
 }
 .btn.tool {
-  min-width: 48px;
+  min-width: 3rem;
   font-size: 1.2rem;
 }
 .options {
   /* Fixed height: the canvas must never jump when the tool or selection changes. */
-  height: 140px;
+  height: 8.75rem;
   overflow-y: auto;
   flex: none;
   display: flex;
@@ -559,12 +563,13 @@ select {
 }
 .swatches {
   display: flex;
+  flex-wrap: wrap;
   gap: 6px;
   align-items: center;
 }
 .swatch {
-  width: 32px;
-  height: 32px;
+  width: 2rem;
+  height: 2rem;
   border-radius: 50%;
   border: 2px solid var(--border);
   padding: 0;
@@ -593,10 +598,10 @@ select {
   flex-direction: column;
   gap: 2px;
   font-size: 0.8rem;
-  min-width: 140px;
+  min-width: 8.75rem;
 }
 .slider input {
-  min-height: 32px;
+  min-height: 2rem;
   padding: 0;
 }
 .presets {
@@ -610,7 +615,7 @@ select {
   gap: 2px;
 }
 .preset .btn {
-  min-height: 36px;
+  min-height: 2.25rem;
   padding: 0 10px;
 }
 .dot {
@@ -727,7 +732,7 @@ select {
   background: var(--surface);
 }
 .page-sidebar {
-  width: 168px;
+  width: 10.5rem;
   flex: none;
   display: flex;
   flex-direction: column;
@@ -745,7 +750,7 @@ select {
   padding: 0 8px 6px;
 }
 .sidebar-tools .btn {
-  min-height: 36px;
+  min-height: 2.25rem;
   padding: 0 8px;
   font-size: 0.8rem;
 }
@@ -802,7 +807,7 @@ select {
   margin-top: 4px;
 }
 .page-item-actions .btn {
-  min-height: 36px;
+  min-height: 2.25rem;
   min-width: 44px;
   padding: 0 8px;
 }
@@ -889,7 +894,7 @@ progress {
 .outline-item {
   display: block;
   width: 100%;
-  min-height: 36px;
+  min-height: 2.25rem;
   padding: 4px 6px;
   border: 0;
   border-radius: 6px;
@@ -916,7 +921,7 @@ progress {
 }
 .goto input {
   width: 64px;
-  min-height: 36px;
+  min-height: 2.25rem;
 }
 .pdf-progress {
   display: flex;
@@ -929,4 +934,220 @@ progress {
 .pdf-progress progress {
   flex: 1;
   max-width: 320px;
+}
+
+.search-box {
+  width: 100%;
+  max-width: 640px;
+  font-size: 1.1rem;
+}
+.results,
+.results ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.result-group {
+  margin: 16px 0;
+}
+.result-group ul {
+  margin: 4px 0 0 28px;
+}
+.result-doc {
+  font-weight: 600;
+  color: var(--text);
+  text-decoration: none;
+  display: inline-block;
+  padding: 6px 0;
+}
+.result-page {
+  display: flex;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--text);
+  text-decoration: none;
+  align-items: baseline;
+}
+.result-page:hover {
+  background: var(--surface-2);
+}
+.result-pageno {
+  flex: none;
+  min-width: 3em;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+.snippet mark {
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+  color: inherit;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.file-btn {
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+}
+.restore-mode {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 12px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.warn {
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid #b3261e;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* ---- polish (prompt 07) ---- */
+.skip-link {
+  position: absolute;
+  left: 8px;
+  top: -4rem;
+  z-index: 100;
+  padding: 0.5rem 1rem;
+  border-radius: 8px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+}
+.skip-link:focus {
+  top: 8px;
+}
+.toast {
+  position: fixed;
+  z-index: 60;
+  left: 50%;
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+  transform: translateX(-50%);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  max-width: calc(100vw - 2rem);
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
+}
+.fatal {
+  max-width: 36rem;
+  margin: 3rem auto;
+  padding: 0 1rem;
+}
+.fatal pre,
+.license-text {
+  overflow: auto;
+  max-height: 14rem;
+  padding: 0.75rem;
+  border-radius: 8px;
+  background: var(--surface-2);
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+.link-btn {
+  padding: 0.35rem 0;
+  border: 0;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+}
+.licenses ul {
+  list-style: none;
+  padding: 0;
+}
+.shortcuts h3 {
+  margin: 1rem 0 0.25rem;
+  font-size: 0.95rem;
+}
+.shortcuts dl {
+  margin: 0;
+}
+.shortcut-row {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.25rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.shortcut-row dt,
+.shortcut-row dd {
+  margin: 0;
+}
+kbd {
+  padding: 0.1rem 0.4rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--surface-2);
+  font:
+    0.85rem ui-monospace,
+    monospace;
+}
+.error-notice {
+  color: var(--text);
+  border-color: #b3261e;
+}
+.dialog {
+  width: min(92vw, 28rem);
+  overflow: auto;
+}
+
+/* Narrow widths (iPad Split View about 320-500px, phones) */
+@media (max-width: 600px) {
+  /* Keep the editor chrome to two short rows that scroll sideways, so the page keeps the room. */
+  .editor-top,
+  .editor-toolbar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    gap: 6px;
+    padding: 6px 8px;
+    scrollbar-width: none;
+  }
+  .editor-top > *,
+  .editor-toolbar > *,
+  .editor-toolbar .btn-row {
+    flex: none;
+  }
+  .editor-toolbar .btn-row {
+    flex-wrap: nowrap;
+  }
+  .editor-title {
+    flex: 1 0 4.5rem !important;
+    max-width: 40vw;
+  }
+  .save-state {
+    flex: none;
+  }
+}
+@media (max-width: 500px) {
+  .options {
+    height: auto;
+    max-height: 40vh;
+  }
+  .btn {
+    padding: 0 10px;
+  }
+  .btn.tool {
+    min-width: 2.5rem;
+  }
+  .pagebar {
+    flex-wrap: wrap;
+  }
+  .items-grid {
+    grid-template-columns: repeat(auto-fill, minmax(8.5rem, 1fr));
+  }
+  .dialog {
+    width: 94vw;
+  }
 }

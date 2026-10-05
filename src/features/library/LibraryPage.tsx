@@ -23,6 +23,10 @@ import { ConfirmDialog, PromptDialog } from '@/ui/Dialogs';
 import { MoveDialog } from './Dialogs';
 import { ItemCard } from './ItemCard';
 import { ImportButton, ImportProgressDialog, usePdfImport } from './ImportPdf';
+import { BusyDialog } from '@/ui/BusyDialog';
+import { exportDocumentAsPdf } from '../pdf/exportActions';
+import { saveDocumentFile } from '../backup/saveArchive';
+import { flushAllPages } from '../editor/pageRegistry';
 import { ItemMenu, type MenuAction } from '@/ui/ItemMenu';
 import {
   deleteForever,
@@ -91,6 +95,26 @@ export function LibraryPage({ mode }: { mode: LibraryMode }) {
   const [menu, setMenu] = useState<{ x: number; y: number; item: LibItem } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pdfImport = usePdfImport(folderId);
+  const [exporting, setExporting] = useState<{ label: string; done: number; total: number } | null>(
+    null,
+  );
+
+  const runExport = async (
+    label: string,
+    fn: (onProgress: (p: { done: number; total: number }) => void) => Promise<unknown>,
+  ) => {
+    setExporting({ label, done: 0, total: 1 });
+    try {
+      setError(null);
+      await flushAllPages();
+      await fn((p) => setExporting({ label, done: p.done, total: p.total }));
+    } catch (e) {
+      console.error(e);
+      setError('The export failed. Your notebook is unchanged.');
+    } finally {
+      setExporting(null);
+    }
+  };
 
   const items = useLive(
     () => loadItems(mode, folderId, sort),
@@ -137,6 +161,31 @@ export function LibraryPage({ mode }: { mode: LibraryMode }) {
         label: itemFavorite(item) ? 'Remove favorite' : 'Favorite',
         onSelect: () => void run(() => toggleFavorite(item)),
       },
+      ...(item.type === 'document'
+        ? [
+            {
+              label: 'Export as PDF',
+              onSelect: () =>
+                void runExport('Building PDF', (p) =>
+                  exportDocumentAsPdf(
+                    item.doc.id,
+                    item.doc.title,
+                    item.doc.kind === 'pdf' ? 'annotated' : 'annotated',
+                    p,
+                  ),
+                ),
+            },
+            {
+              label: 'Export notebook file',
+              onSelect: () =>
+                void runExport('Saving notebook file', (p) =>
+                  saveDocumentFile(item.doc.id, item.doc.title, (x) =>
+                    p({ done: x.done, total: x.total }),
+                  ),
+                ),
+            },
+          ]
+        : []),
       { label: 'Move to trash', danger: true, onSelect: () => void run(() => trash(item)) },
     ];
   };
@@ -172,6 +221,14 @@ export function LibraryPage({ mode }: { mode: LibraryMode }) {
       className={pdfImport.dragging ? 'drop-zone active' : 'drop-zone'}
     >
       <ImportProgressDialog busy={pdfImport.busy} />
+      {exporting && (
+        <BusyDialog
+          title="Exporting"
+          message={`${exporting.label}…`}
+          done={exporting.done}
+          total={exporting.total}
+        />
+      )}
       <h1>{mode === 'folder' && path.length ? path[path.length - 1]!.name : title}</h1>
 
       <nav aria-label="Library sections" className="subnav">

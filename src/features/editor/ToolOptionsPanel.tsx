@@ -14,6 +14,7 @@ export function ToolOptionsPanel() {
     | null
   >(null);
 
+  if (!s.optionsOpen) return null;
   const sel = s.selectedObject;
   const patch = (p: Record<string, unknown>, key: string) =>
     activeController()?.patchSelected(p, key);
@@ -21,7 +22,7 @@ export function ToolOptionsPanel() {
   // A selected object is edited in place, whichever tool is active.
   if (sel && s.tool === 'lasso') {
     return (
-      <div className="options" aria-label="Object options">
+      <div className="options" id="tool-options" aria-label="Object options">
         <strong>{describeObject(sel)}</strong>
         {sel.type === 'text' && <TextControls value={sel} onChange={patch} />}
         {sel.type === 'shape' && (
@@ -60,7 +61,7 @@ export function ToolOptionsPanel() {
 
   if (s.tool === 'text') {
     return (
-      <div className="options" aria-label="Text options">
+      <div className="options" id="tool-options" aria-label="Text options">
         <TextControls value={s.text} onChange={(p) => s.setText(p)} />
         <p className="muted">Tap the page to add a text box. Tap an existing one to edit it.</p>
       </div>
@@ -68,7 +69,7 @@ export function ToolOptionsPanel() {
   }
   if (s.tool === 'shape') {
     return (
-      <div className="options" aria-label="Shape options">
+      <div className="options" id="tool-options" aria-label="Shape options">
         <ShapeControls
           showKinds
           value={{
@@ -85,7 +86,7 @@ export function ToolOptionsPanel() {
   }
   if (!isInkTool(s.tool)) {
     return (
-      <div className="options" aria-label="Tool options">
+      <div className="options" id="tool-options" aria-label="Tool options">
         <p className="muted">
           {s.tool === 'eraser'
             ? 'Eraser removes whole ink strokes it touches. Undo brings them back.'
@@ -100,7 +101,7 @@ export function ToolOptionsPanel() {
   const maxW = s.tool === 'highlighter' ? 48 : 24;
 
   return (
-    <div className="options" aria-label="Tool options">
+    <div className="options" id="tool-options" aria-label="Tool options">
       <div className="swatches" role="group" aria-label="Colour">
         {PALETTE.map((c) => (
           <button

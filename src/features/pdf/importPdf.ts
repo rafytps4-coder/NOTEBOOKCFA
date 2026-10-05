@@ -58,7 +58,7 @@ export async function importPdfFile(
     return await createPdfDocument({ title, folderId, blob: file, pages: dims });
   } catch (e) {
     if (e instanceof ImportError) throw e;
-    if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+    if ((e as { name?: string } | null)?.name === 'QuotaExceededError') {
       throw new ImportError('Not enough storage space to import this PDF.', e);
     }
     throw new ImportError(explainPdfError(e), e);

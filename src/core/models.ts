@@ -153,3 +153,31 @@ export interface SettingRow {
   key: string;
   value: unknown;
 }
+
+/**
+ * Derived search text for one page. `typed` rows are rebuilt from text boxes whenever a page is
+ * saved; `pdf` rows hold text extracted from the PDF page (an empty string means "extracted,
+ * nothing there", so scanned pages aren't re-processed). This table is a cache: it can be rebuilt
+ * from source data and is not part of backups.
+ */
+export interface SearchTextRow {
+  key: string; // `${source}:${pageId}`
+  documentId: string;
+  pageId: string;
+  source: 'typed' | 'pdf';
+  text: string;
+}
+
+/**
+ * Safety copies of page content. `previous` is the last good version before a save overwrote it
+ * (refreshed at most every few seconds); `corrupt` keeps the raw data of a page that failed
+ * validation so nothing is ever thrown away silently.
+ */
+export interface PageBackupRow {
+  key: string; // `previous:${pageId}` | `corrupt:${pageId}`
+  pageId: string;
+  kind: 'previous' | 'corrupt';
+  savedAt: number;
+  strokes: unknown;
+  objects: unknown;
+}

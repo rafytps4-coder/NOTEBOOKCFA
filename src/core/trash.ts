@@ -1,5 +1,6 @@
 import { cleanupOrphanAssets } from './assets';
 import { db } from './db';
+import { deleteSearchTextForDocuments } from './searchText';
 import { copyDocumentRows } from './documents';
 import { descendantFolderIds } from './folders';
 import { newId, now } from './ids';
@@ -79,27 +80,33 @@ export async function listTrash(): Promise<TrashContents> {
 
 /** Removes the document, its pages and its assets. Nothing else is touched. */
 export async function permanentDeleteDocument(id: string): Promise<void> {
-  await db.transaction('rw', db.documents, db.pages, db.pageContent, db.assets, async () => {
-    const pageIds = await db.pages.where('documentId').equals(id).primaryKeys();
-    await db.pageContent.bulkDelete(pageIds);
-    await db.pages.where('documentId').equals(id).delete();
-    await db.assets.where('documentId').equals(id).delete();
-    await db.documents.delete(id);
-  });
+  await db.transaction(
+    'rw',
+    db.documents,
+    db.pages,
+    db.pageContent,
+    db.assets,
+    db.searchText,
+    async () => {
+      await deleteSearchTextForDocuments([id]);
+      const pageIds = await db.pages.where('documentId').equals(id).primaryKeys();
+      await db.pageContent.bulkDelete(pageIds);
+      await db.pages.where('documentId').equals(id).delete();
+      await db.assets.where('documentId').equals(id).delete();
+      await db.documents.delete(id);
+    },
+  );
 }
 
 /** Removes the folder, all subfolders, and every document inside them (with pages/assets). */
 export async function permanentDeleteFolder(id: string): Promise<void> {
   await db.transaction(
     'rw',
-    db.folders,
-    db.documents,
-    db.pages,
-    db.pageContent,
-    db.assets,
+    [db.folders, db.documents, db.pages, db.pageContent, db.assets, db.searchText],
     async () => {
       const ids = [id, ...(await descendantFolderIds(id))];
       const docIds = await db.documents.where('folderId').anyOf(ids).primaryKeys();
+      await deleteSearchTextForDocuments(docIds);
       const pageIds = await db.pages.where('documentId').anyOf(docIds).primaryKeys();
       await db.pageContent.bulkDelete(pageIds);
       await db.pages.where('documentId').anyOf(docIds).delete();
@@ -121,11 +128,7 @@ export async function emptyTrash(): Promise<void> {
 export async function duplicateFolder(id: string): Promise<Folder> {
   return db.transaction(
     'rw',
-    db.folders,
-    db.documents,
-    db.pages,
-    db.pageContent,
-    db.assets,
+    [db.folders, db.documents, db.pages, db.pageContent, db.assets, db.searchText],
     async () => {
       const src = await db.folders.get(id);
       if (!src) throw new Error('Folder not found');

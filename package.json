@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/gen-licenses.mjs",
     "build": "tsc -b && vite build",
     "preview": "vite preview",
     "lint": "eslint .",
@@ -14,7 +15,9 @@
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "ajv": "^8.20.0",
     "dexie": "^4.4.6",
+    "minisearch": "^7.2.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.4.299",
     "perfect-freehand": "^1.2.3",

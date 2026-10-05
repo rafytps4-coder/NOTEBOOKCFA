@@ -21,6 +21,8 @@ interface FixtureOptions {
   scanned?: boolean;
   /** Different page sizes (cycled) to detect ordering mistakes. */
   sizes?: [number, number][];
+  /** Extra text drawn on each page (cycled), so tests can search for it. */
+  texts?: string[];
   /** Table of contents entries (0-based target page). */
   outline?: { title: string; page: number }[];
 }
@@ -35,6 +37,14 @@ export async function makePdf(o: FixtureOptions): Promise<Uint8Array> {
     if (img) page.drawImage(img, { x: 0, y: 0, width: w, height: h });
     else {
       page.drawText(`Page ${i + 1}`, { x: 50, y: h - 80, size: 24, font, color: rgb(0, 0, 0) });
+      if (o.texts)
+        page.drawText(o.texts[i % o.texts.length]!, {
+          x: 50,
+          y: h - 120,
+          size: 14,
+          font,
+          color: rgb(0, 0, 0),
+        });
       page.drawRectangle({ x: 50, y: 50, width: 100, height: 60, color: rgb(0.9, 0.9, 0.2) });
     }
     if (o.rotate) page.setRotation(degrees(o.rotate[i % o.rotate.length]!));

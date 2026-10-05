@@ -4,6 +4,7 @@ import { Dialog } from '@/ui/Dialog';
 import { ImportError, importPdfFile, looksLikePdf, type ImportProgress } from '../pdf/importPdf';
 import { renderPdfThumbnail } from '../pdf/pdfBackground';
 import { closePdf } from '../pdf/pdfDocs';
+import { ensurePdfText } from '../search/pdfText';
 import { listPages, setThumbnail, setPageThumbnail } from '@/core';
 
 /**
@@ -46,6 +47,7 @@ export function usePdfImport(folderId: string) {
         } finally {
           await closePdf(doc.id);
         }
+        void ensurePdfText(doc.id); // searchable PDF text, extracted in the background
       } catch (e) {
         setError(e instanceof ImportError ? e.message : 'The PDF could not be imported.');
         console.error(e);

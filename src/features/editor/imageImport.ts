@@ -51,7 +51,7 @@ export async function importImageFile(file: File, documentId: string): Promise<I
       const asset = await addImageAsset(documentId, blob, file.name);
       return { assetId: asset.id, width: w, height: h };
     } catch (e) {
-      if (e instanceof DOMException && e.name === 'QuotaExceededError') {
+      if ((e as { name?: string } | null)?.name === 'QuotaExceededError') {
         throw new Error(
           'Not enough storage space to add this image. Free some space or back up and clean up storage.',
           { cause: e },

@@ -1,4 +1,6 @@
 import { db } from './db';
+import { backupPreviousContent } from './pageIntegrity';
+import { deleteSearchTextForPages, syncTypedText } from './searchText';
 import { newId, now } from './ids';
 import {
   DEFAULT_BACKGROUND,
@@ -180,11 +182,12 @@ export async function updatePage(
 
 /** Permanently remove soft-deleted pages (and their ink). Run when a document is opened/closed. */
 export async function purgeDeletedPages(documentId: string): Promise<number> {
-  return db.transaction('rw', db.pages, db.pageContent, db.assets, async () => {
+  return db.transaction('rw', db.pages, db.pageContent, db.assets, db.searchText, async () => {
     const rows = await db.pages.where('documentId').equals(documentId).toArray();
     const dead = rows.filter((p) => p.deletedAt !== null).map((p) => p.id);
     if (!dead.length) return 0;
     await db.pageContent.bulkDelete(dead);
+    await deleteSearchTextForPages(dead);
     await db.pages.bulkDelete(dead);
     await db.assets.bulkDelete(dead.map(pageThumbId));
     return dead.length;
@@ -205,13 +208,23 @@ export interface PageInk {
 
 export async function savePageContent(pageId: string, content: PageInk): Promise<void> {
   const t = now();
-  await db.transaction('rw', db.pages, db.pageContent, db.documents, async () => {
-    const page = await db.pages.get(pageId);
-    if (!page) return; // page was purged while a save was pending
-    await db.pageContent.put({ pageId, strokes: content.strokes, objects: content.objects });
-    await db.pages.update(pageId, { updatedAt: t });
-    await db.documents.update(page.documentId, { updatedAt: t });
-  });
+  await db.transaction(
+    'rw',
+    db.pages,
+    db.pageContent,
+    db.documents,
+    db.searchText,
+    db.pageBackup,
+    async () => {
+      const page = await db.pages.get(pageId);
+      if (!page) return; // page was purged while a save was pending
+      await backupPreviousContent(pageId);
+      await db.pageContent.put({ pageId, strokes: content.strokes, objects: content.objects });
+      await syncTypedText(pageId, page.documentId, content.objects);
+      await db.pages.update(pageId, { updatedAt: t });
+      await db.documents.update(page.documentId, { updatedAt: t });
+    },
+  );
 }
 
 /** Ink-only convenience used by older call sites and tests; keeps existing objects. */

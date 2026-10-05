@@ -1,6 +1,6 @@
 import { savePageContent, type PageInk } from '@/core';
 
-export type SaveState = 'saved' | 'unsaved' | 'saving' | 'error';
+export type SaveState = 'saved' | 'unsaved' | 'saving' | 'error' | 'full';
 
 /**
  * Debounced autosave. Never blocks drawing: writes are async and serialized.
@@ -55,7 +55,9 @@ export class PageSaver {
       .catch((e) => {
         console.error('Autosave failed', e);
         this.dirty = true; // keep the data in memory and retry on the next change
-        if (!this.disposed) this.onState('error');
+        // Dexie wraps the browser's DOMException in its own error class, so go by name.
+        const full = (e as { name?: string } | null)?.name === 'QuotaExceededError';
+        if (!this.disposed) this.onState(full ? 'full' : 'error');
       })
       .finally(() => {
         this.inflight = null;

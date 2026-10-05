@@ -33,6 +33,9 @@ interface EditorState {
   perfOverlay: boolean;
   /** Page whose undo/redo/selection the toolbar controls. */
   activePageId: string | null;
+  /** Tool options panel visible (collapsed by default on narrow screens to leave room to write). */
+  optionsOpen: boolean;
+  toggleOptions: () => void;
 
   setTool: (t: EditorTool) => void;
   setOption: (patch: Partial<ToolOptions>) => void;
@@ -71,6 +74,8 @@ export const useEditorStore = create<EditorState>((set, get) => ({
   saveState: 'saved',
   perfOverlay: false,
   activePageId: null,
+  optionsOpen: typeof window === 'undefined' || window.innerWidth > 600,
+  toggleOptions: () => set((st) => ({ optionsOpen: !st.optionsOpen })),
 
   setTool: (tool) => set({ tool }),
   setOption: (patch) => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import {
   ensureFirstPage,
   getDocument,
@@ -21,6 +21,8 @@ type Loaded =
 
 export function EditorPage() {
   const { id = '' } = useParams();
+  const [search] = useSearchParams();
+  const initialPageId = search.get('page') ?? undefined;
   const [state, setState] = useState<Loaded>({ s: 'loading' });
 
   useEffect(() => {
@@ -54,6 +56,7 @@ export function EditorPage() {
         doc={state.doc}
         initialPages={state.pages}
         defaultStyle={state.style}
+        initialPageId={initialPageId}
       />
     );
   if (state.s === 'loading') return <p role="status">Opening…</p>;

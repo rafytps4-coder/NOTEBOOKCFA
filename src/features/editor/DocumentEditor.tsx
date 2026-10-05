@@ -16,16 +16,18 @@ import { Toolbar } from './Toolbar';
 import { ToolOptionsPanel } from './ToolOptionsPanel';
 import { useEditorStore } from './editorStore';
 import { useEditorSettings } from './useEditorSettings';
+import { useDataNotices } from './dataNotices';
+import { ShortcutsHost } from '../help/ShortcutsDialog';
 import { clearImageCache } from './imageCache';
 import { importImageFile } from './imageImport';
 import { ItemMenu } from '@/ui/ItemMenu';
-import { safeFilename, saveBlob } from '@/ui/saveFile';
 import { flushAllPages } from './pageRegistry';
 import { clearInkCache } from './pageRegistry';
 import { pdfBitmaps } from '../pdf/bitmapCache';
 import { closePdf } from '../pdf/pdfDocs';
-import { exportOriginal, exportPdf, type ExportMode } from '../pdf/exportPdf';
-import { browserRasterizer } from '../pdf/rasterizer';
+import { exportDocumentAsPdf } from '../pdf/exportActions';
+import type { ExportMode } from '../pdf/exportPdf';
+import { saveDocumentFile } from '../backup/saveArchive';
 import {
   clearAnnotations,
   hasAnnotations,
@@ -39,6 +41,7 @@ const SAVE_LABEL = {
   saving: 'Saving…',
   unsaved: 'Unsaved changes',
   error: 'Save failed, retrying',
+  full: 'Storage full: not saved',
 };
 const MIN_ZOOM = 0.3;
 const MAX_ZOOM = 2.5;
@@ -48,10 +51,13 @@ export function DocumentEditor({
   doc,
   initialPages,
   defaultStyle,
+  initialPageId,
 }: {
   doc: NotebookDocument;
   initialPages: Page[];
   defaultStyle: PageStyle;
+  /** Open scrolled to this page (e.g. from a search result). */
+  initialPageId?: string;
 }) {
   useEditorSettings();
   const pages = useLive(() => listPages(doc.id), [doc.id], initialPages);
@@ -71,6 +77,9 @@ export function DocumentEditor({
   const [, bump] = useState(0);
   const [notice, setNotice] = useState<string | null>(null);
   const isPdf = doc.kind === 'pdf';
+  const dataNotices = useDataNotices((n) => n.notices);
+  const dismissNotice = useDataNotices((n) => n.dismiss);
+  const [shortcutsSignal, setShortcutsSignal] = useState(0);
   // Bumped when ink is replaced wholesale (remove/restore annotations) so every page reloads it.
   const [epoch, setEpoch] = useState(0);
   const [pdfMenu, setPdfMenu] = useState<{ x: number; y: number } | null>(null);
@@ -181,6 +190,17 @@ export function DocumentEditor({
 
   const onCurrent = useCallback((i: number) => setCurrentIndex(i), []);
 
+  // Opened from a search result: jump to that page once, after the first layout.
+  const jumped = useRef(false);
+  useEffect(() => {
+    if (jumped.current || !initialPageId) return;
+    const i = pages.findIndex((p) => p.id === initialPageId);
+    if (i < 0) return;
+    jumped.current = true;
+    setCurrentIndex(i);
+    window.setTimeout(() => goTo(i), 80); // after the first layout
+  }, [initialPageId, pages, goTo]);
+
   // A page created by the user: jump to it as soon as the live query delivers it.
   const pendingGo = useRef<string | null>(null);
   const afterAdd = useCallback((page: Page) => {
@@ -276,23 +296,33 @@ export function DocumentEditor({
   );
 
   // ---- PDF actions ----------------------------------------------------------------
-  const runExport = async (mode: ExportMode | 'original', suffix: string) => {
+  const runExport = async (mode: ExportMode | 'original') => {
     setNotice(null);
     setJob({ label: 'Preparing…', done: 0, total: 1 });
     try {
       await flushAllPages(); // include ink that is still waiting for its autosave
-      const blob =
-        mode === 'original'
-          ? await exportOriginal(doc.id)
-          : await exportPdf(doc.id, {
-              mode,
-              rasterizer: browserRasterizer,
-              onProgress: (p) => setJob({ label: 'Building PDF', done: p.done, total: p.total }),
-            });
-      await saveBlob(blob, `${safeFilename(doc.title)}${suffix}.pdf`);
+      await exportDocumentAsPdf(doc.id, doc.title, mode, (p) =>
+        setJob({ label: 'Building PDF', done: p.done, total: p.total }),
+      );
     } catch (e) {
       console.error(e);
       setNotice('The PDF could not be exported. Your notebook is unchanged.');
+    } finally {
+      setJob(null);
+    }
+  };
+
+  const runNotebookFile = async () => {
+    setNotice(null);
+    setJob({ label: 'Saving notebook file', done: 0, total: 1 });
+    try {
+      await flushAllPages();
+      await saveDocumentFile(doc.id, doc.title, (p) =>
+        setJob({ label: 'Saving notebook file', done: p.done, total: p.total }),
+      );
+    } catch (e) {
+      console.error(e);
+      setNotice('The notebook file could not be saved. Your notebook is unchanged.');
     } finally {
       setJob(null);
     }
@@ -361,18 +391,24 @@ export function DocumentEditor({
             Single page
           </button>
         </div>
-        {isPdf && (
-          <button
-            className="btn"
-            aria-haspopup="menu"
-            onClick={(e) => {
-              const r = e.currentTarget.getBoundingClientRect();
-              setPdfMenu({ x: r.left, y: r.bottom });
-            }}
-          >
-            PDF ▾
-          </button>
-        )}
+        <button
+          className="btn"
+          aria-haspopup="menu"
+          onClick={(e) => {
+            const r = e.currentTarget.getBoundingClientRect();
+            setPdfMenu({ x: r.left, y: r.bottom });
+          }}
+        >
+          Export ▾
+        </button>
+        <button
+          className="btn"
+          onClick={() => setShortcutsSignal((n) => n + 1)}
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+        >
+          ⌨
+        </button>
         <span className={`save-state save-${saveState}`} role="status" aria-live="polite">
           {SAVE_LABEL[saveState]}
         </span>
@@ -397,6 +433,22 @@ export function DocumentEditor({
           insertImages: (f) => void insertImages(f),
         }}
       />
+      {saveState === 'full' && (
+        <p role="alert" className="notice error-notice">
+          Your device is out of storage space, so the latest changes are only kept in memory for
+          now. Free some space (or delete things you no longer need), then keep writing; saving
+          retries automatically. Settings → Storage &amp; backup can export a backup first.
+        </p>
+      )}
+      {dataNotices.map((n) => (
+        <p key={n.id} role="status" className="notice">
+          {n.message}
+          <button className="btn" onClick={() => dismissNotice(n.id)}>
+            OK
+          </button>
+        </p>
+      ))}
+      <ShortcutsHost openSignal={shortcutsSignal} />
       {notice && (
         <p role="alert" className="notice error-notice">
           {notice}
@@ -530,22 +582,30 @@ export function DocumentEditor({
           x={pdfMenu.x}
           y={pdfMenu.y}
           onClose={() => setPdfMenu(null)}
-          actions={[
-            {
-              label: 'Export annotated PDF',
-              onSelect: () => void runExport('annotated', '-annotated'),
-            },
-            { label: 'Export original PDF', onSelect: () => void runExport('original', '') },
-            {
-              label: 'Export annotations only',
-              onSelect: () => void runExport('annotationsOnly', '-annotations'),
-            },
-            {
-              label: 'Remove all annotations…',
-              danger: true,
-              onSelect: () => setDlg({ t: 'wipe' }),
-            },
-          ]}
+          actions={
+            isPdf
+              ? [
+                  {
+                    label: 'Export annotated PDF',
+                    onSelect: () => void runExport('annotated'),
+                  },
+                  { label: 'Export original PDF', onSelect: () => void runExport('original') },
+                  {
+                    label: 'Export annotations only',
+                    onSelect: () => void runExport('annotationsOnly'),
+                  },
+                  { label: 'Export notebook file', onSelect: () => void runNotebookFile() },
+                  {
+                    label: 'Remove all annotations…',
+                    danger: true,
+                    onSelect: () => setDlg({ t: 'wipe' }),
+                  },
+                ]
+              : [
+                  { label: 'Export as PDF', onSelect: () => void runExport('annotated') },
+                  { label: 'Export notebook file', onSelect: () => void runNotebookFile() },
+                ]
+          }
         />
       )}
       {dlg?.t === 'wipe' && (

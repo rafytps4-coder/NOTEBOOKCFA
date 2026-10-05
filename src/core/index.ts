@@ -10,3 +10,5 @@ export * from './pages';
 export * from './thumbnails';
 export * from './assets';
 export * from './pdfDocs';
+export * from './searchText';
+export * from './pageIntegrity';

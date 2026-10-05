@@ -9,7 +9,19 @@ export default defineConfig({
   fullyParallel: false,
   workers: 1, // perf-sensitive tests: avoid CPU contention between workers
   reporter: 'list',
-  use: { baseURL: 'http://localhost:4173' },
+  use: {
+    baseURL: 'http://localhost:4173',
+    // Most tests aren't about the first-run guide: start them as a returning user.
+    storageState: {
+      cookies: [],
+      origins: [
+        {
+          origin: 'http://localhost:4173',
+          localStorage: [{ name: 'notebook.firstRunDone', value: '1' }],
+        },
+      ],
+    },
+  },
   webServer: {
     command: 'npm run build && npm run preview -- --port 4173 --strictPort',
     url: 'http://localhost:4173',

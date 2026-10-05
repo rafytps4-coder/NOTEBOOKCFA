@@ -166,7 +166,7 @@ test('import, render, annotate, reload, export: annotations land where they were
   await expect.poll(async () => (await canvasStats(page, 'yellow')).n).toBeGreaterThan(500);
 
   // Export annotated PDF
-  await page.getByRole('button', { name: 'PDF ▾' }).click();
+  await page.getByRole('button', { name: 'Export ▾' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: 'Export annotated PDF' }).click(),
@@ -182,7 +182,7 @@ test('import, render, annotate, reload, export: annotations land where they were
   expect(Math.abs(r.cy - 200)).toBeLessThan(6);
 
   // Export original: byte-identical
-  await page.getByRole('button', { name: 'PDF ▾' }).click();
+  await page.getByRole('button', { name: 'Export ▾' }).click();
   const [dl2] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: 'Export original PDF' }).click(),
@@ -190,7 +190,7 @@ test('import, render, annotate, reload, export: annotations land where they were
   expect(sha(readFileSync((await dl2.path())!))).toBe(sha(original));
 
   // Annotations only: has the ink but not the page content
-  await page.getByRole('button', { name: 'PDF ▾' }).click();
+  await page.getByRole('button', { name: 'Export ▾' }).click();
   const [dl3] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: 'Export annotations only' }).click(),
@@ -200,7 +200,7 @@ test('import, render, annotate, reload, export: annotations land where they were
   expect(only.yellow).toBe(0);
 
   // Remove all annotations: ink gone, PDF blob unchanged; undo brings it back
-  await page.getByRole('button', { name: 'PDF ▾' }).click();
+  await page.getByRole('button', { name: 'Export ▾' }).click();
   await page.getByRole('menuitem', { name: 'Remove all annotations…' }).click();
   await page.getByRole('button', { name: 'Remove annotations' }).click();
   await expect.poll(async () => (await canvasStats(page, 'red')).n).toBe(0);
@@ -221,7 +221,7 @@ test('rotated pages: ink stays aligned after export (rotate 90 and 180)', async 
   await drawRedLine(page, 792, [150, 120], [350, 120]);
   await expect.poll(() => storedStrokes(page)).toBe(1);
   await waitSaved(page);
-  await page.getByRole('button', { name: 'PDF ▾' }).click();
+  await page.getByRole('button', { name: 'Export ▾' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: 'Export annotated PDF' }).click(),
@@ -267,7 +267,7 @@ test('adding a blank page to a PDF includes it in the export', async ({ page }) 
   await expect
     .poll(async () => page.evaluate(() => document.querySelectorAll('.canvas-host').length))
     .toBeGreaterThan(0);
-  await page.getByRole('button', { name: 'PDF ▾' }).click();
+  await page.getByRole('button', { name: 'Export ▾' }).click();
   const [download] = await Promise.all([
     page.waitForEvent('download'),
     page.getByRole('menuitem', { name: 'Export annotated PDF' }).click(),

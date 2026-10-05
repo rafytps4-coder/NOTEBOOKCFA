@@ -188,7 +188,7 @@ test('default template and size from Settings apply to a new notebook; later pag
 }) => {
   await page.goto('/settings');
   await page.getByLabel('Template').selectOption('ruled');
-  await page.getByLabel('Size').selectOption('Letter');
+  await page.locator('label', { hasText: /^Size/ }).locator('select').selectOption('Letter');
   await page.getByLabel('Orientation').selectOption('landscape');
   await page.waitForTimeout(700); // let the settings writes land
   await createNotebook(page, 'Defaults');

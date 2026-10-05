@@ -18,6 +18,10 @@ export default tseslint.config(
     },
   },
   {
+    files: ['scripts/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node } },
+  },
+  {
     files: ['src/core/**', 'src/engines/**'],
     rules: {
       'no-restricted-imports': [

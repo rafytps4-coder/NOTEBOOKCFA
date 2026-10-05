@@ -1,11 +1,22 @@
 import Dexie, { type Table } from 'dexie';
-import type { Asset, Folder, NotebookDocument, Page, PageContent, SettingRow } from './models';
+import type {
+  Asset,
+  Folder,
+  NotebookDocument,
+  Page,
+  PageBackupRow,
+  PageContent,
+  SearchTextRow,
+  SettingRow,
+} from './models';
 
 export class NotebookDB extends Dexie {
   folders!: Table<Folder, string>;
   documents!: Table<NotebookDocument, string>;
   pages!: Table<Page, string>;
   pageContent!: Table<PageContent, string>;
+  searchText!: Table<SearchTextRow, string>;
+  pageBackup!: Table<PageBackupRow, string>;
   assets!: Table<Asset, string>;
   settings!: Table<SettingRow, string>;
 
@@ -37,6 +48,10 @@ export class NotebookDB extends Dexie {
           p.deletedAt ??= null;
         });
       });
+    // v3: purely additive: a derived cache of searchable text (see SearchTextRow).
+    this.version(3).stores({ searchText: 'key, documentId, pageId' });
+    // v4: purely additive: last-good copies of page content (see PageBackupRow).
+    this.version(4).stores({ pageBackup: 'key, pageId' });
   }
 }
 
