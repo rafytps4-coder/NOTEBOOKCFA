@@ -1,0 +1,1 @@
+{"root":["./src/App.tsx","./src/main.tsx","./src/test-setup.ts","./src/features/settings/SettingsPage.tsx","./src/ui/Planned.tsx","./src/ui/theme.test.ts","./src/ui/theme.ts","./e2e/smoke.spec.ts","./vite.config.ts","./playwright.config.ts"],"version":"6.0.3"}
