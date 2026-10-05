@@ -13,9 +13,7 @@
       "id": "quant.future-value",
       "name": "Future value (lump sum)",
       "topicId": "quant",
-      "conceptIds": [
-        "quant.fv-pv"
-      ],
+      "conceptIds": ["quant.fv-pv"],
       "category": "Time Value of Money",
       "equation": {
         "latex": "FV = PV\\,(1+r)^{N}",
@@ -44,10 +42,7 @@
       ],
       "purpose": "Finds what a single amount today grows to if it earns a steady compounded rate.",
       "whenToUse": "One deposit or investment, no interim cash flows, a known rate and horizon.",
-      "assumptions": [
-        "Rate stays constant",
-        "Interest is reinvested each period"
-      ],
+      "assumptions": ["Rate stays constant", "Interest is reinvested each period"],
       "workedExample": {
         "problem": "You invest 1,000 at 5% per year for 3 years. What is it worth at the end?",
         "steps": [
@@ -57,18 +52,13 @@
         ],
         "answer": "FV ≈ 1,157.63"
       },
-      "relatedFormulaIds": [
-        "quant.npv"
-      ],
+      "relatedFormulaIds": ["quant.npv"],
       "commonMistakes": [
         "Using an annual rate with a quarterly or monthly N",
         "Typing 5 instead of 0.05",
         "Forgetting that N counts compounding periods, not years"
       ],
-      "tags": [
-        "tvm",
-        "compounding"
-      ],
+      "tags": ["tvm", "compounding"],
       "difficulty": "foundational",
       "source": "original"
     },
@@ -76,10 +66,7 @@
       "id": "quant.npv",
       "name": "Net present value (NPV)",
       "topicId": "corp",
-      "conceptIds": [
-        "corp.capital-budgeting",
-        "quant.fv-pv"
-      ],
+      "conceptIds": ["corp.capital-budgeting", "quant.fv-pv"],
       "category": "Capital Budgeting",
       "equation": {
         "latex": "NPV = \\sum_{t=0}^{N}\\frac{CF_t}{(1+r)^t}",
@@ -116,17 +103,13 @@
         ],
         "answer": "NPV ≈ -5.26, so reject on a pure NPV basis"
       },
-      "relatedFormulaIds": [
-        "quant.future-value"
-      ],
+      "relatedFormulaIds": ["quant.future-value"],
       "commonMistakes": [
         "Discounting the time-0 outflow",
         "Using the wrong discount rate",
         "Ignoring the sign of cash flows"
       ],
-      "tags": [
-        "capital-budgeting"
-      ],
+      "tags": ["capital-budgeting"],
       "difficulty": "foundational",
       "source": "original"
     },
@@ -134,10 +117,7 @@
       "id": "pm.capm",
       "name": "Capital Asset Pricing Model (CAPM)",
       "topicId": "pm",
-      "conceptIds": [
-        "pm.capm-sml",
-        "equity.cost-of-equity"
-      ],
+      "conceptIds": ["pm.capm-sml", "equity.cost-of-equity"],
       "category": "Required Return",
       "equation": {
         "latex": "E(R_i) = R_f + \\beta_i\\,[E(R_m) - R_f]",
@@ -164,31 +144,18 @@
       ],
       "purpose": "Estimates the return investors should demand given an asset's systematic risk.",
       "whenToUse": "Finding a cost of equity or a benchmark return for performance judgement.",
-      "assumptions": [
-        "Only market risk is rewarded",
-        "A suitable beta estimate is available"
-      ],
+      "assumptions": ["Only market risk is rewarded", "A suitable beta estimate is available"],
       "workedExample": {
         "problem": "Risk-free rate 3%, market return 9%, beta 1.2. Required return?",
-        "steps": [
-          "Market premium = 9% - 3% = 6%.",
-          "1.2 x 6% = 7.2%.",
-          "3% + 7.2%."
-        ],
+        "steps": ["Market premium = 9% - 3% = 6%.", "1.2 x 6% = 7.2%.", "3% + 7.2%."],
         "answer": "10.2%"
       },
-      "relatedFormulaIds": [
-        "equity.gordon-growth",
-        "pm.sharpe-ratio"
-      ],
+      "relatedFormulaIds": ["equity.gordon-growth", "pm.sharpe-ratio"],
       "commonMistakes": [
         "Multiplying beta by the market return instead of the premium",
         "Mixing nominal and real rates"
       ],
-      "tags": [
-        "cost-of-equity",
-        "beta"
-      ],
+      "tags": ["cost-of-equity", "beta"],
       "difficulty": "foundational",
       "source": "original"
     },
@@ -196,9 +163,7 @@
       "id": "equity.gordon-growth",
       "name": "Gordon growth (constant-growth DDM)",
       "topicId": "equity",
-      "conceptIds": [
-        "equity.ddm"
-      ],
+      "conceptIds": ["equity.ddm"],
       "category": "Dividend Discount Models",
       "equation": {
         "latex": "V_0 = \\frac{D_1}{r - g}",
@@ -226,30 +191,19 @@
       ],
       "purpose": "Values a share whose dividends are expected to grow at a steady rate forever.",
       "whenToUse": "Mature, stable dividend payers where r is clearly greater than g.",
-      "assumptions": [
-        "g is constant and sustainable",
-        "r > g"
-      ],
+      "assumptions": ["g is constant and sustainable", "r > g"],
       "workedExample": {
         "problem": "Next dividend 2.00, required return 9%, growth 4%. Value?",
-        "steps": [
-          "r - g = 0.09 - 0.04 = 0.05.",
-          "2.00 / 0.05."
-        ],
+        "steps": ["r - g = 0.09 - 0.04 = 0.05.", "2.00 / 0.05."],
         "answer": "40.00 per share"
       },
-      "relatedFormulaIds": [
-        "pm.capm"
-      ],
+      "relatedFormulaIds": ["pm.capm"],
       "commonMistakes": [
         "Using D0 where D1 is required",
         "Applying it when g >= r",
         "Using a growth rate above long-run economic growth"
       ],
-      "tags": [
-        "valuation",
-        "ddm"
-      ],
+      "tags": ["valuation", "ddm"],
       "difficulty": "intermediate",
       "source": "original"
     },
@@ -257,10 +211,7 @@
       "id": "fi.price-change-duration-convexity",
       "name": "Approximate bond price change (duration + convexity)",
       "topicId": "fi",
-      "conceptIds": [
-        "fi.duration-convexity",
-        "fi.price-yield"
-      ],
+      "conceptIds": ["fi.duration-convexity", "fi.price-yield"],
       "category": "Duration & Convexity",
       "equation": {
         "latex": "\\%\\Delta P \\approx -D_{mod}\\,\\Delta y + \\tfrac{1}{2}\\,C\\,(\\Delta y)^{2}",
@@ -302,9 +253,7 @@
         "Entering 0.5 instead of 0.005 for a 50 bp change",
         "Using duration alone for large yield moves"
       ],
-      "tags": [
-        "interest-rate-risk"
-      ],
+      "tags": ["interest-rate-risk"],
       "difficulty": "intermediate",
       "source": "original"
     },
@@ -312,10 +261,7 @@
       "id": "pm.two-asset-variance",
       "name": "Two-asset portfolio variance",
       "topicId": "pm",
-      "conceptIds": [
-        "pm.portfolio-return-risk",
-        "pm.diversification"
-      ],
+      "conceptIds": ["pm.portfolio-return-risk", "pm.diversification"],
       "category": "Portfolio Risk",
       "equation": {
         "latex": "\\sigma_p^2 = w_1^2\\sigma_1^2 + w_2^2\\sigma_2^2 + 2w_1w_2\\rho_{12}\\sigma_1\\sigma_2",
@@ -347,18 +293,13 @@
         ],
         "answer": "σp ≈ 13.74%"
       },
-      "relatedFormulaIds": [
-        "pm.sharpe-ratio"
-      ],
+      "relatedFormulaIds": ["pm.sharpe-ratio"],
       "commonMistakes": [
         "Reporting variance when standard deviation was asked",
         "Leaving out the factor 2",
         "Mixing percentages and decimals"
       ],
-      "tags": [
-        "diversification",
-        "correlation"
-      ],
+      "tags": ["diversification", "correlation"],
       "difficulty": "intermediate",
       "source": "original"
     },
@@ -366,9 +307,7 @@
       "id": "pm.sharpe-ratio",
       "name": "Sharpe ratio",
       "topicId": "pm",
-      "conceptIds": [
-        "pm.performance-measures"
-      ],
+      "conceptIds": ["pm.performance-measures"],
       "category": "Risk-Adjusted Performance",
       "equation": {
         "latex": "S = \\frac{R_p - R_f}{\\sigma_p}",
@@ -392,23 +331,15 @@
       "whenToUse": "Comparing whole portfolios or funds with different risk levels.",
       "workedExample": {
         "problem": "Return 12%, risk-free 3%, standard deviation 15%. Sharpe ratio?",
-        "steps": [
-          "Excess return = 12% - 3% = 9%.",
-          "9% / 15%."
-        ],
+        "steps": ["Excess return = 12% - 3% = 9%.", "9% / 15%."],
         "answer": "0.60"
       },
-      "relatedFormulaIds": [
-        "pm.capm",
-        "pm.two-asset-variance"
-      ],
+      "relatedFormulaIds": ["pm.capm", "pm.two-asset-variance"],
       "commonMistakes": [
         "Forgetting to subtract the risk-free rate",
         "Using beta instead of total standard deviation"
       ],
-      "tags": [
-        "performance"
-      ],
+      "tags": ["performance"],
       "difficulty": "foundational",
       "source": "original"
     },
@@ -416,9 +347,7 @@
       "id": "deriv.put-call-parity",
       "name": "Put-call parity (European, no dividends)",
       "topicId": "deriv",
-      "conceptIds": [
-        "deriv.put-call-parity"
-      ],
+      "conceptIds": ["deriv.put-call-parity"],
       "category": "Options",
       "equation": {
         "latex": "C_0 + \\frac{X}{(1+r)^{T}} = P_0 + S_0",
@@ -470,10 +399,7 @@
         "Not discounting the strike",
         "Using it for American options without adjustment"
       ],
-      "tags": [
-        "options",
-        "no-arbitrage"
-      ],
+      "tags": ["options", "no-arbitrage"],
       "difficulty": "intermediate",
       "source": "original"
     }

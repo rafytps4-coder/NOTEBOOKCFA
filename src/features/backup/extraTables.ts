@@ -42,6 +42,8 @@ export const EXTRA_SPECS: Spec[] = [
   // Formulas keep their ids (cards and questions refer to them by id); notes belong to a formula.
   { table: 'formulas', key: 'id', ns: null, keepExisting: true },
   { table: 'formulaProgress', key: 'formulaId', ns: null, keepExisting: true },
+  // Which Helpers are on. A merge never switches one of your Helpers on or off.
+  { table: 'helperInstances', key: 'id', ns: null, keepExisting: true },
 ];
 
 export const EXTRA_TABLE_NAMES = [...EXTRA_SPECS.map((s) => s.table), 'studyAssets'];

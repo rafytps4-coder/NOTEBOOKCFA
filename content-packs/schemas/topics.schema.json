@@ -66,13 +66,7 @@
     "topic": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "summary",
-        "order",
-        "modules"
-      ],
+      "required": ["id", "name", "summary", "order", "modules"],
       "properties": {
         "id": {
           "type": "string",
@@ -91,10 +85,7 @@
           "minimum": 1
         },
         "defaultWeightPercent": {
-          "type": [
-            "number",
-            "null"
-          ],
+          "type": ["number", "null"],
           "minimum": 0,
           "maximum": 100,
           "description": "null = unknown; planner falls back to equal weights. The user can edit this in-app."
@@ -110,11 +101,7 @@
     "module": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "concepts"
-      ],
+      "required": ["id", "name", "concepts"],
       "properties": {
         "id": {
           "type": "string",
@@ -136,11 +123,7 @@
     "concept": {
       "type": "object",
       "additionalProperties": false,
-      "required": [
-        "id",
-        "name",
-        "summary"
-      ],
+      "required": ["id", "name", "summary"],
       "properties": {
         "id": {
           "type": "string",

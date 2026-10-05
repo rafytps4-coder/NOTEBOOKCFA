@@ -1,6 +1,8 @@
 import { useRef } from 'react';
 import type { EditorTool } from '@/engines/drawing';
 import { useEditorStore } from './editorStore';
+import { HelpersMenu } from './HelpersMenu';
+import type { MenuAction } from '@/ui/ItemMenu';
 
 const TOOLS: { id: EditorTool; label: string; icon: string }[] = [
   { id: 'pen', label: 'Pen', icon: '✒️' },
@@ -22,6 +24,8 @@ export interface ToolbarActions {
   paste: () => void;
   insertImages: (files: File[]) => void;
   createFlashcard: () => void;
+  /** Actions from enabled Helpers for the selection (the entry is hidden when no Helper offers any). */
+  helperActions: { available: boolean; get: () => Promise<MenuAction[]> };
 }
 
 export function Toolbar({ actions }: { actions: ToolbarActions }) {
@@ -105,6 +109,11 @@ export function Toolbar({ actions }: { actions: ToolbarActions }) {
         >
           Flashcard
         </button>
+        <HelpersMenu
+          available={actions.helperActions.available}
+          disabled={!s.hasSelection}
+          getActions={actions.helperActions.get}
+        />
         <button className="btn danger" disabled={!s.hasSelection} onClick={actions.deleteSelection}>
           Delete
         </button>

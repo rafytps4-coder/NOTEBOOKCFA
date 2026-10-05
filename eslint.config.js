@@ -37,4 +37,23 @@ export default tseslint.config(
       ],
     },
   },
+  {
+    // Isolation: the CFA Helper must stay removable. Nothing outside src/helpers may name it
+    // (features may use the registry and types; they discover Helpers only through the registry).
+    files: ['src/features/**', 'src/ui/**'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['**/helpers/cfa', '**/helpers/cfa/**', '@/helpers/cfa', '@/helpers/cfa/**'],
+              message:
+                'Only src/helpers may reference helpers/cfa. Use the Helper registry instead.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

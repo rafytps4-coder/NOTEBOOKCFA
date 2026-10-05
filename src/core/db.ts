@@ -13,6 +13,7 @@ import type {
   Flashcard,
   FormulaProgress,
   FormulaRow,
+  HelperInstance,
   Mistake,
   Question,
   QuizResult,
@@ -43,6 +44,7 @@ export class NotebookDB extends Dexie {
   studyAssets!: Table<StudyAsset, string>;
   formulas!: Table<FormulaRow, string>;
   formulaProgress!: Table<FormulaProgress, string>;
+  helperInstances!: Table<HelperInstance, string>;
 
   constructor(name = 'notebook') {
     super(name);
@@ -93,6 +95,8 @@ export class NotebookDB extends Dexie {
       formulas: 'id, packId, origin, category, topicId',
       formulaProgress: 'formulaId',
     });
+    // v7: purely additive: which Helpers are enabled.
+    this.version(7).stores({ helperInstances: 'id' });
   }
 }
 

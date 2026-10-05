@@ -12,7 +12,8 @@
     "format": "prettier --write .",
     "typecheck": "tsc -b --noEmit",
     "test": "vitest run",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "check:isolation": "node scripts/check-isolation.mjs"
   },
   "dependencies": {
     "ajv": "^8.20.0",

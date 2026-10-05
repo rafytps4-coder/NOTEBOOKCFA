@@ -2,11 +2,14 @@ import { useRef, useState } from 'react';
 import { installFormulaPack, listInstalledPacks } from '@/core';
 import { validateFormulaPack, parseFormulaPack } from '@/engines/formula';
 import { useLive } from '@/ui/useLive';
-import { BUNDLED_PACKS } from './packSources';
+import { useEnabledHelpers } from '@/helpers/state';
 
 /** Install formulas from a bundled pack or a file. Invalid packs are explained and change nothing. */
 export function PackLoader({ onDone }: { onDone?: () => void }) {
   const installed = useLive(listInstalledPacks, [], []);
+  const sources = useEnabledHelpers().flatMap((h) =>
+    (h.packs ?? []).map((p) => ({ ...p, from: h.name })),
+  );
   const [msg, setMsg] = useState<{ ok: boolean; lines: string[] } | null>(null);
   const [busy, setBusy] = useState(false);
   const file = useRef<HTMLInputElement>(null);
@@ -43,15 +46,15 @@ export function PackLoader({ onDone }: { onDone?: () => void }) {
         progress.
       </p>
       <ul className="row-list">
-        {BUNDLED_PACKS.map((p) => {
-          const have = installed.find(
-            (i) => i.packId && p.id === 'starter' && i.packId === 'cfa-l1-2027',
-          );
+        {sources.map((p) => {
+          const have = installed.find((i) => i.packId === p.packId);
           return (
             <li key={p.id}>
               <div className="grow">
                 <strong>{p.title}</strong>
-                <div className="muted">{p.description}</div>
+                <div className="muted">
+                  {p.description} (from {p.from})
+                </div>
                 {have && <span className="tag">installed v{have.contentVersion}</span>}
               </div>
               <button

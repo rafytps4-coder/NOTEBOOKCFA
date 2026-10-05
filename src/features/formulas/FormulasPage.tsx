@@ -131,7 +131,8 @@ export function FormulasPage() {
 
       {data.formulas.length === 0 ? (
         <p className="empty">
-          No formulas yet. Install a pack above, or write your own with “New formula”.
+          No formulas yet. Write your own with “New formula”, install a pack file (Packs), or turn
+          on a Helper that comes with one.
         </p>
       ) : view.shown.length === 0 ? (
         <p className="empty">No formulas match.</p>

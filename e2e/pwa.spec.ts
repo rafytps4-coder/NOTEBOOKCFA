@@ -123,6 +123,7 @@ function startDistServer(): Promise<{
 test('update flow: a new version waits until the user chooses; never reloads by itself', async ({
   browser,
 }) => {
+  test.setTimeout(120_000); // precaching the whole app (maths fonts included) takes a while on slow machines
   const srv = await startDistServer();
   const ctx = await browser.newContext({
     viewport: { width: 834, height: 1194 },

@@ -197,3 +197,35 @@ textarea.study-text {
 .mastery {
   white-space: nowrap;
 }
+.helper-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 12px;
+}
+.helper-card {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+}
+.helper-card h2,
+.helper-card h3 {
+  margin: 0;
+}
+.helper-card h3 {
+  margin-top: 12px;
+  font-size: 0.95rem;
+}
+.helper-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+.helper-head .grow {
+  flex: 1;
+}
+.helper-icon {
+  font-size: 2rem;
+}

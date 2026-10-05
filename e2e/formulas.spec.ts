@@ -1,8 +1,17 @@
-import { expect, test } from '@playwright/test';
+import path from 'node:path';
+import { expect, test, type Page } from '@playwright/test';
 
-test('install the starter pack, browse, make a flashcard, study it and watch mastery follow the rules', async ({
+/** The starter pack is offered by the CFA Helper, so turn it on first. */
+async function enableCfaHelper(page: Page) {
+  await page.goto('/helpers');
+  await page.getByRole('button', { name: 'Turn on CFA Helper' }).click();
+  await expect(page.getByText('On', { exact: true })).toBeVisible();
+}
+
+test('@helpers install the starter pack, browse, make a flashcard, study it and watch mastery follow the rules', async ({
   page,
 }) => {
+  await enableCfaHelper(page);
   await page.goto('/study/formulas');
   await expect(page.getByText('No formulas yet')).toBeVisible();
   await page.getByRole('button', { name: 'Install' }).click();
@@ -68,9 +77,10 @@ test('install the starter pack, browse, make a flashcard, study it and watch mas
   );
 });
 
-test('notes persist, formulas are found by search, bad packs are refused without changes', async ({
+test('@helpers notes persist, formulas are found by search, bad packs are refused without changes', async ({
   page,
 }) => {
+  await enableCfaHelper(page);
   await page.goto('/study/formulas');
   await page.getByRole('button', { name: 'Install' }).click();
   await expect(page.getByRole('list', { name: 'Formulas' }).getByRole('listitem')).toHaveCount(8);
@@ -131,4 +141,15 @@ test('write your own formula', async ({ page }) => {
   await d.getByRole('button', { name: 'Save' }).click();
   await page.getByLabel('Search formulas').fill('circle');
   await expect(page.getByRole('list', { name: 'Formulas' })).toContainText('yours');
+});
+
+test('a pack file installs without any Helper (core works on its own)', async ({ page }) => {
+  await page.goto('/study/formulas');
+  await expect(page.getByText('No formulas yet')).toBeVisible();
+  await page
+    .getByLabel('Choose a formula pack file')
+    .setInputFiles(
+      path.join(process.cwd(), 'content-packs', 'cfa-l1-2027', 'formulas.starter.json'),
+    );
+  await expect(page.getByRole('list', { name: 'Formulas' }).getByRole('listitem')).toHaveCount(8);
 });

@@ -108,10 +108,7 @@
         "equation": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "latex",
-            "plain"
-          ],
+          "required": ["latex", "plain"],
           "properties": {
             "latex": {
               "type": "string",
@@ -129,10 +126,7 @@
           "items": {
             "type": "object",
             "additionalProperties": false,
-            "required": [
-              "symbol",
-              "name"
-            ],
+            "required": ["symbol", "name"],
             "properties": {
               "symbol": {
                 "type": "string"
@@ -164,11 +158,7 @@
         "workedExample": {
           "type": "object",
           "additionalProperties": false,
-          "required": [
-            "problem",
-            "steps",
-            "answer"
-          ],
+          "required": ["problem", "steps", "answer"],
           "properties": {
             "problem": {
               "type": "string"
@@ -206,20 +196,14 @@
           }
         },
         "difficulty": {
-          "enum": [
-            "foundational",
-            "intermediate",
-            "advanced"
-          ]
+          "enum": ["foundational", "intermediate", "advanced"]
         },
         "isCalculationHeavy": {
           "type": "boolean",
           "default": true
         },
         "source": {
-          "enum": [
-            "original"
-          ],
+          "enum": ["original"],
           "description": "Only 'original' is allowed until a licensed source exists."
         }
       }

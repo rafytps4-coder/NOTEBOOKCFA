@@ -1,5 +1,4 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import './study.css';
 
 const TABS = [
   { to: '/study', label: 'Flashcards', end: true },

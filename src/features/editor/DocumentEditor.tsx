@@ -14,6 +14,8 @@ import { PageView } from './PageView';
 import { activeController } from './pageRegistry';
 import { Toolbar } from './Toolbar';
 import { renderSelectionPng } from './selectionSnapshot';
+import { collectSelectionActions, useEnabledHelpers } from '@/helpers/state';
+import type { SelectionContext } from '@/helpers/types';
 import { CreateFromSelection, type SelectionDraft } from '../study/CreateFromSelection';
 import { ToolOptionsPanel } from './ToolOptionsPanel';
 import { useEditorStore } from './editorStore';
@@ -265,6 +267,28 @@ export function DocumentEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions, index, goTo, afterAdd, viewMode]);
 
+  const helperList = useEnabledHelpers();
+  async function getHelperActions() {
+    const ctx = await selectionContext();
+    if (!ctx) return [];
+    return collectSelectionActions(helperList, ctx).map(({ action }) => ({
+      label: action.label,
+      onSelect: () => void action.run(),
+    }));
+  }
+
+  async function selectionContext(): Promise<SelectionContext | null> {
+    const c = activeController();
+    const pageId = useEditorStore.getState().activePageId;
+    const info = c?.selectionInfo();
+    if (!c || !pageId || !info) return null;
+    const text = info.objects
+      .flatMap((o) => (o.type === 'text' ? [o.text.trim()] : []))
+      .filter(Boolean)
+      .join('\n');
+    return { documentId: doc.id, pageId, text, snapshot: () => renderSelectionPng(info) };
+  }
+
   async function startFlashcard() {
     const c = activeController();
     const pageId = useEditorStore.getState().activePageId;
@@ -453,6 +477,10 @@ export function DocumentEditor({
           paste: () => activeController()?.paste(),
           insertImages: (f) => void insertImages(f),
           createFlashcard: () => void startFlashcard(),
+          helperActions: {
+            available: helperList.some((h) => !!h.selectionActions),
+            get: getHelperActions,
+          },
         }}
       />
       {saveState === 'full' && (

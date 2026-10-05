@@ -140,6 +140,11 @@ const rowSchemas: Record<string, object> = {
       origin: { enum: ['pack', 'user'] },
     },
   },
+  helperInstances: {
+    type: 'object',
+    required: ['id', 'enabled'],
+    properties: { id: str, enabled: bool },
+  },
   formulaProgress: {
     type: 'object',
     required: ['formulaId'],

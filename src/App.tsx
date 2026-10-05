@@ -1,3 +1,4 @@
+import './features/study/study.css';
 import { NavLink, Navigate, Route, Routes, useMatch } from 'react-router-dom';
 import { SettingsPage } from './features/settings/SettingsPage';
 import { PersistenceNotice } from './features/settings/PersistenceNotice';
@@ -19,16 +20,26 @@ import { MistakeReview } from './features/study/MistakeReview';
 import { UpdatePrompt } from './features/pwa/UpdatePrompt';
 import { FirstRunGuide } from './features/help/FirstRunGuide';
 import { ShortcutsHost } from './features/help/ShortcutsDialog';
+import { HelpersPage } from './features/helpers/HelpersPage';
+import { HelperRoute } from './features/helpers/HelperRoute';
+import { helpers } from './helpers/registry';
 import { ErrorBoundary } from './ui/ErrorBoundary';
 
-// "Helpers" (optional subject modules) is not listed until one exists: no placeholder screens.
-const NAV = [
+// "Helpers" is listed only when at least one Helper is registered (see helpers/registry).
+const BASE_NAV = [
   { to: '/library', label: 'Library', icon: '▤' },
   { to: '/recent', label: 'Recent', icon: '◷' },
   { to: '/study', label: 'Study', icon: '🗂' },
   { to: '/search', label: 'Search', icon: '⌕' },
   { to: '/settings', label: 'Settings', icon: '⚙' },
 ] as const;
+const NAV = helpers.length
+  ? [
+      ...BASE_NAV.slice(0, -1),
+      { to: '/helpers', label: 'Helpers', icon: '✦' },
+      BASE_NAV[BASE_NAV.length - 1]!,
+    ]
+  : BASE_NAV;
 
 export function App() {
   const inEditor = useMatch('/doc/:id') !== null;
@@ -72,6 +83,8 @@ export function App() {
               <Route path="mistakes/review" element={<MistakeReview />} />
             </Route>
             <Route path="/search" element={<SearchPage />} />
+            <Route path="/helpers" element={<HelpersPage />} />
+            <Route path="/helpers/:id" element={<HelperRoute />} />
             <Route path="/settings" element={<SettingsPage />} />
             <Route path="*" element={<Navigate to="/library" replace />} />
           </Routes>

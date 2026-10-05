@@ -141,7 +141,7 @@ describe('export → wipe → import', () => {
     const blob = (await exportLibrary())!;
     const before = await snapshot();
     const info = await inspectArchive(blob);
-    expect(info).toMatchObject({ scope: 'library', dbVersion: 6 });
+    expect(info).toMatchObject({ scope: 'library', dbVersion: 7 });
     expect(info.counts).toMatchObject({ folders: 2, documents: 2, pages: 2 });
     expect(info.titles).toContain('Algebra');
     expect(await snapshot()).toEqual(before);
@@ -277,7 +277,7 @@ describe('bad archives fail safely (nothing is changed)', () => {
     version: 1,
     scope: 'library',
     createdAt: 1,
-    dbVersion: 6,
+    dbVersion: 7,
     tables: {},
     summary: { folders: 0, documents: 0, pages: 0, assets: 0, bytes: 0 },
     ...over,

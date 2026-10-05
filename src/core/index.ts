@@ -16,3 +16,4 @@ export * from './studyModels';
 export * from './study';
 export * from './questionsIO';
 export * from './formulas';
+export * from './helperInstances';

@@ -101,12 +101,16 @@ Built in prompt 01: `src/core/` holds `models`, `db` (Dexie v1), repositories (`
 - **User data is separate from pack data**: pack formulas live in `formulas` (`origin: 'pack'`, replaced on update); notes live in `formulaProgress` keyed by formula id; flashcards/questions/mistakes link by `formulaId`. Updating or removing a pack formula therefore never loses notes or history. User formulas have ids starting `user:` and can't collide with pack ids.
 - **Mastery** is derived from linked review logs, quiz results and mistakes (rules in `docs/MASTERY.md`); it cannot be edited. `features/formulas/masteryData.ts` gathers the history in bulk.
 - **Backup & search**: formulas and notes are in library backups (natural keys: a merge only adds missing rows and never overwrites yours; Replace restores them). The search worker indexes formulas (name, category, plain equation, purpose, when-to-use, variables, tags and your notes) and results open the formula.
-- **Bundled pack list** (`packSources.ts`) currently lists the starter pack; prompt 10 moves pack discovery to Helpers.
+- **Pack discovery**: the Packs panel lists packs offered by enabled Helpers (`Helper.packs`) plus "from a file"; the core ships no pack of its own.
 
-## 7. Helper plugin interface _(planned, prompt 10)_
+## 7. Helper plugin interface (built in prompt 10)
 
-- A `Helper` registers via `helpers/registry` (id, name, routes, nav entry, optional hooks). Core knows only the registry.
-- The Helpers screen lists registered helpers; today none exist and the screen says "Planned".
+- Full documentation, including a step-by-step "how to add a new Helper", is in **`docs/HELPERS.md`**.
+- `src/helpers/types.ts` defines `Helper` (id, name, description, icon, version, `stores`, `Onboarding`, `Dashboard`, optional `selectionActions`, `packs`, `data`, `onEnable`/`onDisable`). `registry.ts` discovers Helpers with `import.meta.glob('./*/index.{ts,tsx}')`, so adding a Helper is adding a folder and removing one is deleting its folder; nothing else names it. Enabled state is the Dexie table `helperInstances` (v7, additive; included in library backups, never overwritten by a merge).
+- The **Helpers** nav item and `/helpers` screen exist only when at least one Helper is registered. Disabling hides a Helper and keeps its data; _Delete Helper data_ is a separate, confirmed action that lists what will be removed.
+- The notebook toolbar's generic **Helpers ▾** menu appears only when an enabled Helper offers selection actions.
+- `helpers/cfa/` is a registered shell: name, Level I, the required disclaimer, "Planned" labels for what is not built, no numbers. It brings the starter formula pack (offered under Study → Formulas → Packs while it is on).
+- **Isolation**: ESLint forbids `core`/`engines` from importing `helpers` at all and `features`/`ui` from importing `helpers/cfa`; a unit test proves the rule fires; `npm run check:isolation` builds a copy of the project with `src/helpers/cfa` deleted (and, with `--e2e`, runs the non-Helper e2e tests against it).
 
 ## 8. Content-pack loading _(planned, prompt 10–13)_
 

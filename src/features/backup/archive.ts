@@ -22,7 +22,7 @@ import {
 } from './extraTables';
 
 /** The schema version of the database these archives are made from (see core/db.ts). */
-export const DB_VERSION = 6;
+export const DB_VERSION = 7;
 const APP = { name: 'Notebook', version: '0.1.0' };
 
 /**

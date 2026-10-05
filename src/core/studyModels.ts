@@ -171,3 +171,18 @@ export interface InstalledPack {
   count: number;
   installedAt: number;
 }
+
+// ---- helpers (prompt 10) -----------------------------------------------------------------
+
+/** Whether a Helper is switched on. Disabling keeps all of a Helper's data. */
+export interface HelperInstance {
+  /** The Helper's id (primary key). */
+  id: string;
+  enabled: boolean;
+  /** Version of the Helper when it was last enabled. */
+  version: string;
+  /** The Helper's one-time introduction has been completed. */
+  onboarded: boolean;
+  enabledAt: number | null;
+  disabledAt: number | null;
+}
